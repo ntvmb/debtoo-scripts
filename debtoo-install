@@ -1,0 +1,443 @@
+#!/bin/bash
+# debtoo-install v1.0.0 by Nathaniel Greenwell (NTVMB)
+# This tool is not intended to install other distros, whether Debian-based or not.
+# Dependencies: bash, coreutils, util-linux, parted, iputils-ping, debootstrap, e2fsprogs, arch-install-scripts, gawk, grub2, dosfstools, efibootmgr
+VERSION=1.0.0
+TARGET_DIR=/mnt/debtoo
+# Check for root access
+if [ $EUID -ne 0 ]; then
+	echo "This script can only be run as root."
+	exit 1
+fi
+
+# Clean up before initialization in case the script closed unexpectedly
+rm /tmp/passwd
+rm /tmp/superuser
+rm part.list
+rm /tmp/commands.sh
+unset TARGET_DISK_NAME
+
+# Test connection to source mirror
+echo "Testing connection to the Devuan mirror..."
+ping pkgmaster.devuan.org -c 4 > /dev/null
+if [ $? -ne 0 ]; then
+	echo "Fatal: Failed to connect to pkgmaster.devuan.org. Are you online?"
+	exit 126
+fi
+
+# Is the system booted with UEFI firmware?
+if [ -d /sys/firmware/efi/efivars ]; then
+	EFI=1
+else
+	EFI=0
+fi
+
+# Get the amount of RAM in KiB and B installed in the system
+RAM_K=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+RAM_B=$(expr $RAM_K \* 1024)
+
+clear
+# Check if the system meets the minimum required RAM of 2 GiB with some tolerance for hardware-reserved RAM.
+if [ $RAM_K -lt 1792000 ]; then
+	echo "You have less than 2 GiB of RAM installed in your system."
+	echo "This may cause memory-related issues when building the system's source packages."
+	read -ep "Proceed anyway? (Y/n) " ANS
+	case $ANS in
+		y|Y)
+			echo "OK. Proceeding. Be prepared for any OOM issues that might come up."
+			;;
+		*)
+			echo "Abort."
+			exit
+			;;
+	esac
+fi
+echo "Warning: Localization cannot be configured as of now."
+echo "Continuing without localization..."
+read -ep "Please enter the hostname for this system. (Default: debtoo) " HOSTNAME
+[ -z $HOSTNAME ] && HOSTNAME=debtoo
+passwd_root () {
+	echo "Please set the password for root."
+	echo "The root user should not have a blank password. If it is left blank, then a user will be created with the ability to become root using sudo."
+	echo "Warning: Passwords are visible."
+	read -ep "root password: " ROOTPASSWD
+	read -ep "Enter password again for verification: " ROOTPASSWD2
+	if [ $ROOTPASSWD = $ROOTPASSWD2 ]; then
+		# Passwords match. Continue onward.
+		unset ROOTPASSWD2
+		if [ ! -z $ROOTPASSWD ]; then
+			echo "root:$ROOTPASSWD" > /tmp/passwd
+			chmod 600 /tmp/passwd
+		fi
+		if [ -z $ROOTPASSWD ]; then
+			touch /tmp/superuser
+			echo passwd -d root > /tmp/commands.sh
+			chmod 755 /tmp/commands.sh
+		fi
+		return 0
+	else
+		# Passwords do not match.
+		echo "Error: Passwords do not match."
+		# Until I can find a proper fix for some weird bugs, I'll have to treat the error as fatal.
+		echo "Note: Treating error as fatal."
+		exit 1
+	fi
+}
+passwd_root
+if [ $? -ne 0 ]; then
+	# Keep retrying until a vaid input is given.
+	until [ $? -eq 0 ]; do
+		passwd_root
+	done
+fi
+# Set up the new user
+if [ -e /tmp/superuser ]; then
+	ADDUSER_ARGS='--ingroup sudo'
+fi
+
+echo "A new user will be created for non-administrative tasks."
+read -ep "Username for the new user: " NEWUSERNAME
+if [ -z $NEWUSERNAME ]; then
+	until [ ! -z $NEWUSERNAME ]; do
+		read -ep "Username for the new user: " NEWUSERNAME
+	done
+fi
+user_passwd () {
+	read -ep "Enter password for $NEWUSERNAME: " NEWUSERPASSWD
+	read -ep "And one more time for verification: " NEWUSERPASSWD2
+	if [ $NEWUSERPASSWD = $NEWUSERPASSWD2 -a ! -z $NEWUSERPASSWD ]; then
+		unset NEWUSERPASSWD2
+		echo "$NEWUSERNAME:$NEWUSERPASSWD" >> /tmp/passwd
+		return 0
+	elif [ $NEWUSERPASSWD != $NEWUSERPASSWD2 ]; then
+		echo "Error: Passwords do not match."
+		echo "Note: Treating error as fatal."
+		exit 1
+	else
+		echo "Error: The standard user account cannot have a blank password."
+		echo "Note: Treating error as fatal."
+		exit 1
+	fi
+}
+user_passwd
+if [ $? -ne 0 ]; then
+	until [ $? -eq 0 ]; do
+		user_passwd
+	done
+fi
+
+# Get list of disks
+(lsblk -A | grep disk) > disks.list
+(lsblk -Ab | grep disk) > disks.listB
+if [ $? -ne 0 ]; then
+	echo "Fatal: Cannot find any disks. Possible causes are - you have no disks, there is a missing driver, or you are running in chroot."
+	exit 126
+fi
+
+disk_sel () {
+	cat disks.list
+	read -ep "Enter the name of the disk to be partitioned. (do not append /dev) " TARGET_DISK_NAME
+	# Make TARGET_DISK_NAME a global variable
+	export TARGET_DISK_NAME
+	# Does the target disk exist?
+	if grep -q "$TARGET_DISK_NAME" disks.list ; then
+		# Is it a null block device?
+		if [[ $TARGET_DISK_NAME =~ nullb ]]; then
+			echo "Error: Target disk cannot be a null block device."
+			echo "Note: Treating error as fatal."
+			unset TARGET_DISK_NAME
+			exit 1
+		else
+			return 0
+		fi
+	else
+		echo "Error: Target disk does not exist."
+		echo "Note: Treating error as fatal."
+		unset TARGET_DISK_NAME
+		exit 1
+	fi
+}
+
+disk_sel
+if [ $? -ne 0 ]; then
+	# Keep retrying until a valid input is given.
+	until [ $? -eq 0 ]; do
+		disk_sel
+	done
+fi
+
+# Get the target disk's partitions (if there are any)
+lsblk -A | grep part > part.list.tmp
+grep "$TARGET_DISK_NAME" part.list.tmp > part.list
+rm part.list.tmp
+# Count the number of partitions and set PART_COUNT to the output value
+PART_COUNT=$(cat part.list | wc -l)
+
+TARGET_DISK=/dev/$TARGET_DISK_NAME
+
+# Get the size of the target disk in bytes (this will be needed later)
+DISK_SIZE=$(grep $TARGET_DISK_NAME disks.listB | awk '{print $4}')
+
+# Define needed functions
+erase_disk () {
+	case $TARGET_DISK_NAME in
+		sd?)
+			DISK_TYPE=sd
+			ROOT_PARTITION=$TARGET_DISK\1
+			;;
+		mmcblk?)
+			DISK_TYPE=mmc
+			ROOT_PARTITION=$TARGET_DISK\p1
+			;;
+		nvme*)
+			DISK_TYPE=nvme
+			ROOT_PARTITION=$TARGET_DISK\p1
+			;;
+	esac
+	echo "The following actions are going to be performed:"
+	if [ $EFI -eq 1 ]; then
+		echo "Create new GPT disk label on $TARGET_DISK"
+		echo "Create new ext4 partition on $TARGET_DISK"
+		echo "Create ESP with size of 127 MiB on $TARGET_DISK"
+		if [ $DISK_TYPE = sd ]; then
+			ESP=$TARGET_DISK\2
+			SWAP_PARTITION=$TARGET_DISK\3
+		else
+			ESP=$TARGET_DISK\p2
+			SWAP_PARTITION=$TARGET_DISK\p3
+		fi
+		echo "Create swap partition with size of $(expr $RAM_K / 2 / 1024 - 1) MiB on $TARGET_DISK"
+	else
+		echo "Create new MBR disk label on $TARGET_DISK"
+		echo "Create new ext4 partition on $TARGET_DISK"
+		if [ $DISK_TYPE = sd ]; then
+			SWAP_PARTITION=$TARGET_DISK\2
+		else
+			SWAP_PARTITION=$TARGET_DISK\p2
+		fi
+		echo "Create swap partition with size of $(expr $RAM_K / 2 / 1024 - 1) MiB on $TARGET_DISK"
+	fi
+	read -ep "Write changes to disk? (Y/n) " ANS
+	case $ANS in
+		Y|y)
+			echo "!! Erasing $TARGET_DISK in 5 seconds. Press Ctrl+C now to stop."
+			sleep 5
+			if [ $? -eq 130 ]; then
+				echo "Interrupt"
+				unset TARGET_DISK_NAME
+				exit 130
+			fi
+			if [ $EFI -eq 1 ]; then
+				local EOP1=$(expr $DISK_SIZE - $(expr $RAM_B / 2 + 134217728))
+				local SOP2=$(expr $EOP1 + 1048576)
+				local EOP2=$(expr $DISK_SIZE - $(expr $RAM_B / 2 + 1048576))
+				local SOP3=$(expr $EOP2 + 1048576)
+				parted -s $TARGET_DISK mklabel gpt \
+					mkpart Linux ext4 1048576B $EOP1\B \
+					mkpart ESP fat32 $SOP2\B $EOP2\B \
+					mkpart swap linux-swap $SOP3\B 100%
+                                if [ $? -ne 0 ]; then
+                                        echo "Fatal: Could not partition the disks!"
+                                        exit 126
+                                fi
+
+				echo "Creating ext4 filesystem on $ROOT_PARTITION..."
+				mkfs.ext4 -q $ROOT_PARTITION
+				echo "Creating FAT32 filesystem on $ESP..."
+				mkdosfs -F 32 $ESP
+				echo "Creating filesystem for swap on $SWAP_PARTITION..."
+				mkswap -q $SWAP_PARTITION
+			else
+				local EOP1=$(expr $DISK_SIZE - $(expr $RAM_B / 2 + 1048576))
+				local SOP2=$(expr $EOP1 + 1048576)
+				parted -s $TARGET_DISK mklabel msdos \
+					mkpart primary ext4 1048576B $EOP1\B \
+					mkpart primary linux-swap $SOP2\B 100%
+                                if [ $? -ne 0 ]; then
+                                        echo "Fatal: Could not partition the disks!"
+                                        exit 126
+                                fi
+
+				echo "Creating ext4 filesystem on $ROOT_PARTITION..."
+				mkfs.ext4 -q $ROOT_PARTITION
+				echo "Creating filesystem for swap on $SWAP_PARTITION..."
+				mkswap -q $SWAP_PARTITION
+			fi
+			;;
+		*)
+			echo "Abort."
+			;;
+	esac
+}
+
+# Other partitioning methods coming soon
+
+# Decide on what we need to do
+echo "What do you want to do with $TARGET_DISK?"
+echo "1 - Erase disk and install Debtoo (WARNING: WILL DESTROY ALL EXISTING DATA ON THE DISK!)"
+echo "2 - Manual partitioning (advanced)"
+if [ $PART_COUNT -gt 1 ]; then
+	echo "3 - Replace a partition with Debtoo (will destroy existing data on the partition)"
+fi
+read -ep "Select an operation or give any other response to quit. " EXEC
+case $EXEC in
+	1|erase)
+		erase_disk $TARGET_DISK
+		;;
+	2|manual)
+		echo "Not implemented yet."
+		unset TARGET_DISK_NAME
+		exit 1
+		;;
+	3|replace)
+		if [ $PART_COUNT -gt 1 ]; then
+			echo "Not implemented yet."
+			unset TARGET_DISK_NAME
+			exit 1
+		else
+			echo "Abort."
+			unset TARGET_DISK_NAME
+			exit
+		fi
+		;;
+	*)
+		echo "Abort."
+		unset TARGET_DISK_NAME
+		exit
+		;;
+esac
+
+# The fun part - the installation
+unset TARGET_DISK_NAME
+echo "Mounting partitions..."
+mkdir $TARGET_DIR
+mount $ROOT_PARTITION $TARGET_DIR
+if [ $? -ne 0 ]; then
+	echo "Fatal: Failed to mount the root partition."
+	exit 126
+fi
+if [ $EFI -eq 1 ]; then
+	echo "Mounting EFI system partition..."
+	mount $ESP $TARGET_DIR/boot
+	if [ $? -ne 0 ]; then
+		echo "Fatal: Failed to mount the EFI system partition."
+		exit 126
+	fi
+fi
+echo "Activating swap..."
+swapon $SWAP_PARTITION
+if [ $? -ne 0 ]; then
+	echo "Warning: Could not activate swap."
+	echo "Continuing without swap... (this may result in running out of memory)"
+fi
+echo "Installing the base system..."
+debootstrap --no-merged-usr --include=grub2,dhcpcd5,iwd,man-db,texinfo,efibootmgr,zstd ceres $TARGET_DIR
+if [ $? -ne 0 ]; then
+	echo "Fatal: Failed to install the base system."
+	exit 1
+fi
+echo "Copying Debtoo scripts..."
+cp /bin/apt-source-install $TARGET_DIR/bin/apt-source-install
+echo "Preparing to enter chroot environment..."
+echo "Copying apt sources..."
+cp /etc/apt/sources.list $TARGET_DIR/etc/apt/sources.list
+echo "Generating the /etc/fstab file..."
+genfstab -U $TARGET_DIR > $TARGET_DIR/etc/fstab
+echo "Copying source packages..."
+cp -rv /usr/src/* $TARGET_DIR/usr/src
+echo "Copying sudoers file..."
+cp /etc/sudoers $TARGET_DIR/etc/sudoers
+echo "Copying GRUB configuration...."
+cp /etc/default/grub $TARGET_DIR/etc/default/grub
+echo "Copying rc.local script..."
+cp /etc/rc.local $TARGET_DIR/etc/rc.local
+echo "Adding /sbin to PATH..."
+echo export PATH=\$PATH:/sbin:/usr/sbin >> $TARGET_DIR/etc/bash.bashrc
+echo "Creating chroot script..."
+CHROOT_SCRIPT=$TARGET_DIR/tmp/chroot-script
+touch $CHROOT_SCRIPT
+chmod 755 $CHROOT_SCRIPT
+echo echo \"Setting the time zone to UTC...\" >> $CHROOT_SCRIPT
+echo ln -sf /usr/share/zoneinfo/Etc/UTC /etc/localtime >> $CHROOT_SCRIPT
+echo echo \"Preparing to build source packages...\" >> $CHROOT_SCRIPT
+echo echo \"Getting build dependencies...\" >> $CHROOT_SCRIPT
+echo apt update >> $CHROOT_SCRIPT
+echo apt -y build-dep linux-signed-amd64 >> $CHROOT_SCRIPT
+# Very long line
+echo apt -y install git fakeroot build-essential ncurses-dev xz-utils libssl-dev bc flex libelf-dev bison binutils pahole jfsutils reiserfsprogs xfsprogs squashfs-tools btrfs-progs dosfstools quota ppp nfs-common procps udev rasdaemon iptables openssl >> $CHROOT_SCRIPT
+echo cd /usr/src/sysvinit-* >> $CHROOT_SCRIPT
+echo echo \"Building sysvinit...\" >> $CHROOT_SCRIPT
+echo make >> $CHROOT_SCRIPT
+echo echo \"Installing sysvinit...\" >> $CHROOT_SCRIPT
+echo make install >> $CHROOT_SCRIPT
+echo echo \"Preparing to build sudo...\" >> $CHROOT_SCRIPT
+echo cd ../sudo-* >> $CHROOT_SCRIPT
+echo ./configure >> $CHROOT_SCRIPT
+echo echo \"Building sudo...\" >> $CHROOT_SCRIPT
+echo make >> $CHROOT_SCRIPT
+echo echo \"Installing sudo...\" >> $CHROOT_SCRIPT
+echo make install >> $CHROOT_SCRIPT
+echo echo \"Installing linux-firmware...\" >> $CHROOT_SCRIPT
+echo cd ../linux-firmware-* >> $CHROOT_SCRIPT
+echo make install >> $CHROOT_SCRIPT
+echo echo \"Preparing to build linux...\" >> $CHROOT_SCRIPT
+echo cd ../linux-?.* >> $CHROOT_SCRIPT
+echo make oldconfig >> $CHROOT_SCRIPT
+echo echo \"Building linux...\" >> $CHROOT_SCRIPT
+echo make >> $CHROOT_SCRIPT
+echo if [ \$? -ne 0 ]\; then echo \"Fatal: Failed to build the kernel \(most likely the system ran out of memory\)\"\; exit 137\; fi >> $CHROOT_SCRIPT
+echo echo \"Installing kernel modules...\" >> $CHROOT_SCRIPT
+echo make modules_install >> $CHROOT_SCRIPT
+echo echo \"Installing linux...\" >> $CHROOT_SCRIPT
+echo make install >> $CHROOT_SCRIPT
+unset CHROOT_SCRIPT
+echo "Entering chroot environment..."
+chroot $TARGET_DIR /tmp/chroot-script
+if [ $? -ne 0 ]; then
+	echo "Error while executing chroot script."
+	rm /tmp/chroot-script
+	exit 1
+fi
+
+# Perform final tasks
+echo "Setting users and passwords..."
+chroot $TARGET_DIR adduser $NEWUSERNAME --uid 1000 --force-badname $ADDUSER_ARGS
+cat /tmp/passwd | chpasswd -R $TARGET_DIR
+echo "Installing the GRUB bootloader..."
+if [ $EFI -eq 1 ]; then
+	arch-chroot $TARGET_DIR grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Debtoo
+	if [ $? -ne 0 ]; then
+		echo "Fatal: Unable to install GRUB."
+		exit 1
+	fi
+else
+	arch-chroot $TARGET_DIR grub-install $TARGET_DISK
+	if [ $? -ne 0 ]; then
+		echo "Fatal: Unable to install GRUB."
+		exit 1
+	fi
+fi
+echo "Running update-grub..."
+arch-chroot $TARGET_DIR update-grub
+echo "Removing temporary files..."
+rm /tmp/commands.sh
+rm /tmp/passwd
+if [ -e /tmp/superuser ]; then
+	rm /tmp/superuser
+fi
+rm disks.list
+rm disks.listB
+rm part.list
+rm /tmp/chroot-script
+echo Done. Please reboot and remove the installation medium.
+echo Once you reboot, you can run tasksel after reconnecting to the internet \(if necessary\) to install a DE of your choice.
+read -ep "Would you like to reboot now? (Y/n) " ANS
+case $ANS in
+	Y|y)
+		/sbin/reboot
+		;;
+	*)
+		echo "Press CTRL+ALT+DELETE or run /sbin/reboot to reboot."
+		exit
+		;;
+esac
