@@ -2,7 +2,7 @@
 # debtoo-install v1.0.0 by Nathaniel Greenwell (NTVMB)
 # This tool is not intended to install other distros, whether Debian-based or not.
 # Dependencies: bash, coreutils, util-linux, parted, iputils-ping, debootstrap, e2fsprogs, arch-install-scripts, gawk, grub2, dosfstools, efibootmgr
-VERSION=1.0.1
+VERSION=1.0.2
 TARGET_DIR=/mnt/debtoo
 # Check for root access
 if [ $EUID -ne 0 ]; then
@@ -421,6 +421,8 @@ chroot $TARGET_DIR adduser $NEWUSERNAME --uid 1000 --force-badname $ADDUSER_ARGS
 cat /tmp/passwd | chpasswd -R $TARGET_DIR
 echo "Installing the GRUB bootloader..."
 if [ $EFI -eq 1 ]; then
+	echo "Installing the grub-efi package..."
+	arch-chroot $TARGET_DIR apt -y install grub-efi
 	arch-chroot $TARGET_DIR grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Debtoo
 	if [ $? -ne 0 ]; then
 		echo "Fatal: Unable to install GRUB."
