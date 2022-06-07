@@ -37,9 +37,9 @@ RAM_K=$(grep MemTotal /proc/meminfo | awk '{print $2}')
 RAM_B=$(expr $RAM_K \* 1024)
 
 clear
-# Check if the system meets the minimum required RAM of 2 GiB with some tolerance for hardware-reserved RAM.
-if [ $RAM_K -lt 1792000 ]; then
-	echo "You have less than 2 GiB of RAM installed in your system."
+# Check if the system meets the minimum required RAM of 1 GiB with some tolerance for hardware-reserved RAM.
+if [ $RAM_K -lt 921600 ]; then
+	echo "You have less than 1 GiB of RAM installed in your system."
 	echo "This may cause memory-related issues when building the system's source packages."
 	read -ep "Proceed anyway? (Y/n) " ANS
 	case $ANS in
