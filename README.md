@@ -6,6 +6,7 @@ In order to use these scripts, you'll need:
   - A Debian(-based) distro
   - A working internet connection
   - (debtoo-install) root privileges
+ 
  For debtoo-install, you'll also need to install the following dependencies if you haven't already:
   - parted
   - iputils-ping
