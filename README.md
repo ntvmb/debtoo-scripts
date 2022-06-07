@@ -3,7 +3,7 @@ Scripts designed for Debtoo - my own Linux distro.
 
 # Requirements
 In order to use these scripts, you'll need:
-  - A Debian(-based) distro
+  - Debian (or a Debian-based distro)
   - A working internet connection
   - (debtoo-install) root privileges
  
