@@ -92,7 +92,7 @@ if [ $? -ne 0 ]; then
 fi
 # Set up the new user
 if [ -e /tmp/superuser ]; then
-	ADDUSER_ARGS='--ingroup sudo'
+	ADDUSER_ARGS='-G sudo'
 fi
 
 echo "A new user will be created for non-administrative tasks."
@@ -417,7 +417,7 @@ fi
 
 # Perform final tasks
 echo "Setting users and passwords..."
-chroot $TARGET_DIR adduser $NEWUSERNAME --uid 1000 --force-badname $ADDUSER_ARGS
+useradd -mU -R $TARGET_DIR $ADDUSER_ARGS $NEWUSERNAME
 cat /tmp/passwd | chpasswd -R $TARGET_DIR
 echo "Installing the GRUB bootloader..."
 if [ $EFI -eq 1 ]; then
