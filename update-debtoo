@@ -1,0 +1,145 @@
+#!/bin/bash
+# update-debtoo v1.0.0 by Nathaniel Greenwell (NTVMB)
+# This script is designed exclusively for Debtoo GNU/Linux
+VERSION=1.0.0
+REAL_VERSION=1.1.0 ; # For updates to debtoo-scripts
+
+# Check for root access
+if [ $EUID -ne 0 ]; then
+	echo "This script can only be run as root."
+	exit 1
+fi
+
+# Check for updates to installed binary packages
+echo "Checking for binary package updates..."
+apt update | grep -q "can be upgraded" ; # apt will give a warning saying it doesn't have a stable CLI interface, but in this case it should work just fine.
+if [ $? -eq 0 ]; then
+  apt -y upgrade
+  if [ $? -ne 0 ]; then
+    echo "Error: Failed to update binary packages"
+    exit 1
+  fi
+fi
+
+# Retrieve latest versions of source packages
+echo "Retrieving source package list..."
+curl -o ./srcpackagelist-debtoo https://github.com/ntvmb/debtoo-scripts/raw/master/srcpackagelist-debtoo
+# Redundant error checking
+if [ $? -ne 0 ]; then
+  echo "Error: Failed to get source package list"
+  exit 1
+fi
+
+. ./srcpackagelist-debtoo ; # Import source package versions from the list
+# Does the kernel need updated?
+if [ $LINUX_VERSION -ne $(uname -r) ]; then
+  echo "Downloading Linux $LINUX_VERSION..."
+  curl -o /usr/src/linux-$LINUX_VERSION.tar.xz https://mirrors.edge.kernel.org/pub/linux/kernel/v5.x/linux-$LINUX_VERSION.tar.xz
+  if [ $? -ne 0 ]; then
+    echo "Error: Failed to download Linux. If this is due to a HTTP 404 error, an updated version of debtoo-scripts may have fixed this."
+    exit 1
+  fi
+  echo "Untarring Linux $LINUX_VERSION..."
+  tar xvf /usr/src/linux-$LINUX_VERSION.tar.xz -C /usr/src/
+  echo "Copying current config..."
+  cp /usr/src/linux-$(uname -r)/.config /usr/src/linux-$LINUX_VERSION/.config
+  echo "Preparing to build Linux..."
+  cd /usr/src/linux-$LINUX_VERSION
+  make oldconfig
+  echo "Building Linux..."
+  make
+  if [ $? -ne 0 ]; then
+    echo "Error: Failed to build Linux."
+    exit 1
+  fi
+  echo "Removing old kernel source code..."
+  rm -rvf /usr/src/linux-$(uname -r)
+  echo "Installing Linux..."
+  make install
+  echo "Cleaning up..."
+  rm -f /usr/src/linux-$LINUX_VERSION.tar.xz
+fi
+# Does linux-firmware need to be updated?
+if [[ ! $(ls /usr/src/linux-firmware-*) =~ $LINUX_FIRMWARE_VERSION ]]; then
+  LINUX_FIRMWARE_OLD=$(ls /usr/src/linux-firmware-*)
+  echo "Downloading linux-firmware..."
+  curl -o /usr/src/linux-firmware-$LINUX_FIRMWARE_VERSION.tar.xz https://mirrors.edge.kernel.org/pub/linux/kernel/firmware/linux-firmware-$LINUX_FIRMWARE_VERSION.tar.xz
+  if [ $? -ne 0 ]; then
+    echo "Error: Failed to download linux-firmware."
+    exit 1
+  fi
+  echo "Untarring linux-firmware..."
+  tar xvf /usr/src/linux-firmware-$LINUX_FIRMWARE_VERSION.tar.xz -C /usr/src/
+  echo "Installing linux-firmware..."
+  cd /usr/src/linux-firmware-$LINUX_FIRMWARE_VERSION
+  make install
+  echo "Cleaning up..."
+  rm -rvf $LINUX_FIRMWARE_OLD
+  rm -f /usr/src/linux-firmware-$LINUX_FIRMWARE_VERSION.tar.xz
+fi
+# Does sudo need to be updated?
+sudo --version | grep -q $SUDO_VERSION
+if [ $? -ne 0 ]; then
+  SUDO_OLD=$(sudo --version | awk '{print $3}' | head -n 1)
+  echo "Downloading sudo..."
+  curl -o /usr/src/sudo-$SUDO_VERSION https://www.sudo.ws/dist/sudo-$SUDO_VERSION.tar.gz
+  if [ $? -ne 0 ]; then
+    echo "Error: Failed to download sudo."
+    exit 1
+  fi
+  echo "Untarring sudo..."
+  tar xvf /usr/src/sudo-$SUDO_VERSION.tar.gz -C /usr/src/
+  echo "Preparing to build sudo..."
+  cd /usr/src/sudo-$SUDO_VERSION
+  ./configure
+  echo "Building sudo..."
+  make
+  if [ $? -ne 0 ]; then
+    echo "Error: Failed to build sudo."
+    exit 1
+  fi
+  echo "Installing sudo..."
+  make install
+  echo "Cleaning up..."
+  rm -rvf /usr/src/sudo-$SUDO_OLD
+  rm -f /usr/src/sudo-$SUDO_VERSION.tar.gz
+fi
+# Does sysvinit need to be updated?
+init --version | grep -q $SYSVINIT_VERSION
+if [ $? -ne 0 ]; then
+  SYSVINIT_OLD=$(init --version | awk print '{print $4}' | head -n 1)
+  echo "Downloading sysvinit..."
+  curl -o /usr/src/sysvinit-$SYSVINIT_VERSION.tar.xz https://download.savannah.nongnu.org/releases/sysvinit/sysvinit-$SYSVINIT_VERSION.tar.xz
+  if [ $? -ne 0 ]; then
+    echo "Error: Failed to download sysvinit."
+    exit 1
+  fi
+  echo "Untarring sysvinit..."
+  tar xvf /usr/src/sysvinit-$SYSVINIT_VERSION.tar.xz -C /usr/src/
+  echo "Building sysvinit..."
+  cd /usr/src/sysvinit-$SYSVINIT_VERSION
+  make
+  echo "Installing sysvinit..."
+  make install
+  echo "Cleaning up..."
+  rm -rvf /usr/src/sysvinit-$SYSVINIT_OLD
+  rm -f /usr/src/sysvinit-$SYSVINIT_VERSION.tar.xz
+fi
+# Does debtoo-scripts need to be updated?
+if [ $REAL_VERSION != $DEBTOO_SCRIPTS_VERSION ]; then
+  echo "Downloading debtoo-scripts..."
+  curl -o /tmp/debtoo-scripts-$DEBTOO_SCRIPTS_VERSION.tar.gz https://github.com/ntvmb/debtoo-scripts/archive/refs/tags/v$DEBTOO_SCRIPTS_VERSION.tar.gz
+  if [ $? -ne 0 ]; then
+    echo "Error: Failed to download debtoo-scripts."
+    exit 1
+  fi
+  tar xvf /tmp/debtoo-scripts-$DEBTOO_SCRIPTS_VERSION.tar.gz
+  echo "Installing debtoo-scripts..."
+  cp /tmp/debtoo-scripts-$DEBTOO_SCRIPTS_VERSION/* /bin
+  echo "Cleaning up..."
+  rm -rvf /tmp/debtoo-scripts-*
+  rm -f /bin/README.md
+  rm -f /bin/LICENSE
+  rm -f /bin/srcpackagelist-debtoo
+fi
+echo "Done"
