@@ -1,8 +1,8 @@
 #!/bin/bash
-# debtoo-install v1.0.0 by Nathaniel Greenwell (NTVMB)
+# debtoo-install v1.0.4 by Nathaniel Greenwell (NTVMB)
 # This tool is not intended to install other distros, whether Debian-based or not.
 # Dependencies: bash, coreutils, util-linux, parted, iputils-ping, debootstrap, e2fsprogs, arch-install-scripts, gawk, grub2, dosfstools, efibootmgr
-VERSION=1.0.3
+VERSION=1.0.4
 TARGET_DIR=/mnt/debtoo
 # Check for root access
 if [ $EUID -ne 0 ]; then
@@ -331,7 +331,7 @@ if [ $? -ne 0 ]; then
 	echo "Continuing without swap... (this may result in running out of memory)"
 fi
 echo "Installing the base system..."
-debootstrap --no-merged-usr --include=grub2,dhcpcd5,iwd,man-db,texinfo,efibootmgr,zstd ceres $TARGET_DIR
+debootstrap --variant=minbase --no-merged-usr --include=grub2,dhcpcd5,iwd,man-db,texinfo,efibootmgr,zstd ceres $TARGET_DIR
 if [ $? -ne 0 ]; then
 	echo "Fatal: Failed to install the base system."
 	exit 1
