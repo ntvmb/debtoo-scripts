@@ -2,7 +2,7 @@
 # update-debtoo v1.0.0 by Nathaniel Greenwell (NTVMB)
 # This script is designed exclusively for Debtoo GNU/Linux
 VERSION=1.0.0
-REAL_VERSION=1.1.1 ; # For updates to debtoo-scripts
+REAL_VERSION=1.1.2 ; # For updates to debtoo-scripts
 
 # Check for root access
 if [ $EUID -ne 0 ]; then
