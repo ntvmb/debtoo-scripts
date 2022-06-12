@@ -23,7 +23,7 @@ fi
 
 # Retrieve latest versions of source packages
 echo "Retrieving source package list..."
-curl -o ./srcpackagelist-debtoo https://github.com/ntvmb/debtoo-scripts/raw/master/srcpackagelist-debtoo
+curl -o ./srcpackagelist-debtoo https://raw.githubusercontent.com/ntvmb/debtoo-scripts/master/srcpackagelist-debtoo
 # Redundant error checking
 if [ $? -ne 0 ]; then
   echo "Error: Failed to get source package list"
