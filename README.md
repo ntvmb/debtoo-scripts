@@ -1,7 +1,7 @@
 # debtoo-scripts
 Scripts designed for Debtoo - my own Linux distro.
 
-# Requirements
+### Requirements
 In order to use these scripts, you'll need:
   - Debian (or a Debian-based distro)
   - A working internet connection
