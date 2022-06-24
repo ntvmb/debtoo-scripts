@@ -1,8 +1,9 @@
 #!/bin/bash
-# update-debtoo v1.0.2 by Nathaniel Greenwell (NTVMB)
+# update-debtoo v1.0.3 by Nathaniel Greenwell (NTVMB)
 # This script is designed exclusively for Debtoo GNU/Linux, or if you are using Devuan, you can migrate to Debtoo.
-VERSION=1.0.2
-REAL_VERSION=1.1.4
+VERSION=1.0.3
+REAL_VERSION=1.1.5
+REQUEST_REBOOT=0
 
 # Check for root access
 if [ $EUID -ne 0 ]; then
