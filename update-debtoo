@@ -4,6 +4,7 @@
 VERSION=1.0.4
 REAL_VERSION=1.1.6
 REQUEST_REBOOT=0
+REQUEST_DIST_UPGRADE=0
 
 # Check for root access
 if [ $EUID -ne 0 ]; then
@@ -15,6 +16,11 @@ fi
 echo "Checking for binary package updates..."
 apt update | grep -q "can be upgraded" ; # apt will give a warning saying it doesn't have a stable CLI interface, but in this case it should work just fine.
 if [ $? -eq 0 ]; then
+  echo "Checking for packages being kept back..."
+  apt --simulate upgrade | grep -q "kept back"
+  if [ $? -eq 0 ]; then
+    REQUEST_DIST_UPGRADE=1
+  fi
   apt -y upgrade
   if [ $? -ne 0 ]; then
     echo "Error: Failed to update binary packages"
@@ -159,6 +165,9 @@ if [ $REAL_VERSION != $DEBTOO_SCRIPTS_VERSION ]; then
   chmod 755 /bin/*
 else
   echo "debtoo-scripts is up to date"
+fi
+if [ $REQUEST_DIST_UPGRADE -eq 1 ]; then
+  echo "One or more packages have been kept back. Try running 'apt full-upgrade' as root or via sudo to correct this."
 fi
 if [ $REQUEST_REBOOT -eq 1 ]; then
   echo "One of your source packages that was updated requested for a reboot. It is recommended that you do so before running update-debtoo again."
