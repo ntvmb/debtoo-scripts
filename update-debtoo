@@ -171,7 +171,7 @@ if [ $REQUEST_DIST_UPGRADE -eq 1 ]; then
 fi
 if [ $REQUEST_REBOOT -eq 1 ]; then
   echo "One of your source packages that was updated requested for a reboot. It is recommended that you do so before running update-debtoo again."
-  read -ep "Would you like to reboot now? (Y/n) " ANS
+  read -ep 'Would you like to reboot now? (Y/n) ' ANS
   case $ANS in
     Y|y)
       echo Rebooting...
