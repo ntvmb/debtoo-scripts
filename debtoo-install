@@ -330,7 +330,7 @@ if [ $? -ne 0 ]; then
 	echo "Continuing without swap... (this may result in running out of memory)"
 fi
 echo "Installing the base system..."
-debootstrap --variant=minbase --no-merged-usr --include=grub2,dhcpcd5,iwd,man-db,texinfo,efibootmgr,zstd,tasksel ceres $TARGET_DIR
+debootstrap --variant=minbase --no-merged-usr --include=grub2,dhcpcd5,iwd,man-db,texinfo,efibootmgr,zstd,tasksel,manpages,wget,curl,nano,vim,locales,build-essential ceres $TARGET_DIR
 if [ $? -ne 0 ]; then
 	echo "Fatal: Failed to install the base system."
 	exit 1
