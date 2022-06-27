@@ -1,7 +1,0 @@
-PRETTY_NAME="Debtoo GNU/Linux 2 (Cirno)"
-NAME="Debtoo GNU/Linux"
-VERSION_ID="2"
-VERSION="2 (Cirno)"
-VERSION_CODENAME="cirno"
-ID=debtoo
-ID_LIKE=debian

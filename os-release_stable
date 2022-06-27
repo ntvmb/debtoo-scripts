@@ -1,7 +1,0 @@
-PRETTY_NAME="Debtoo GNU/Linux 1 (Reimu)"
-NAME="Debtoo GNU/Linux"
-VERSION_ID="1"
-VERSION="1 (Reimu)"
-VERSION_CODENAME="reimu"
-ID=debtoo
-ID_LIKE=debian

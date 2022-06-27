@@ -1,7 +1,0 @@
-PRETTY_NAME="Debtoo GNU/Linux unstable (Flandre)"
-NAME="Debtoo GNU/Linux"
-VERSION_ID="unstable"
-VERSION="unstable (Flandre)"
-VERSION_CODENAME="flandre"
-ID=debtoo
-ID_LIKE=debian
