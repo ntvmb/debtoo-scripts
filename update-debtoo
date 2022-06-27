@@ -6,6 +6,7 @@ REAL_VERSION=1.2.0-testing
 REQUEST_REBOOT=0
 REQUEST_DIST_UPGRADE=0
 NO_REBOOT=0
+SOURCE_ONLY=0
 . /etc/os-release
 
 # Check for root access
@@ -20,27 +21,32 @@ for ARG in $@; do
     "--no-reboot")
       NO_REBOOT=1
       ;;
+    "--source-only")
+      SOURCE_ONLY=1
+      ;;
     *)
       echo "Error: Unknown argument $ARG"
       ;;
   esac
 done
 # Check for updates to installed binary packages
-echo "Checking for binary package updates..."
-apt update | grep -q "can be upgraded" ; # apt will give a warning saying it doesn't have a stable CLI interface, but in this case it should work just fine.
-if [ $? -eq 0 ]; then
-  echo "Checking for packages being kept back..."
-  apt --simulate upgrade | grep -q "kept back"
+if [ $SOURCE_ONLY -eq 0 ]; then
+  echo "Checking for binary package updates..."
+  apt update | grep -q "can be upgraded" ; # apt will give a warning saying it doesn't have a stable CLI interface, but in this case it should work just fine.
   if [ $? -eq 0 ]; then
-    REQUEST_DIST_UPGRADE=1
+    echo "Checking for packages being kept back..."
+    apt --simulate upgrade | grep -q "kept back"
+    if [ $? -eq 0 ]; then
+      REQUEST_DIST_UPGRADE=1
+    fi
+    apt -y upgrade
+    if [ $? -ne 0 ]; then
+      echo "Error: Failed to update binary packages"
+      exit 1
+    fi
+  else
+    echo All binary packages are up to date.
   fi
-  apt -y upgrade
-  if [ $? -ne 0 ]; then
-    echo "Error: Failed to update binary packages"
-    exit 1
-  fi
-else
-  echo All binary packages are up to date.
 fi
 
 # Retrieve latest versions of source packages
@@ -196,7 +202,7 @@ if [ $REAL_VERSION != $DEBTOO_SCRIPTS_VERSION ]; then
   rm -rvf /tmp/debtoo-scripts-*
   rm -f /bin/README.md
   rm -f /bin/LICENSE
-  rm -f /bin/srcpackagelist-debtoo
+  rm -f /bin/srcpackagelist-*
   chmod 755 /bin/*
 else
   echo "debtoo-scripts is up to date"
