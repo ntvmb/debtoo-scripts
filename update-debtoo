@@ -5,6 +5,7 @@ VERSION=1.1.0-testing
 REAL_VERSION=1.2.0-testing
 REQUEST_REBOOT=0
 REQUEST_DIST_UPGRADE=0
+NO_REBOOT=0
 . /etc/os-release
 
 # Check for root access
@@ -13,6 +14,17 @@ if [ $EUID -ne 0 ]; then
 	exit 1
 fi
 
+# Parse arguments
+for ARG in $@; do
+  case $ARG in
+    "--no-reboot")
+      NO_REBOOT=1
+      ;;
+    *)
+      echo "Error: Unknown argument $ARG"
+      ;;
+  esac
+done
 # Check for updates to installed binary packages
 echo "Checking for binary package updates..."
 apt update | grep -q "can be upgraded" ; # apt will give a warning saying it doesn't have a stable CLI interface, but in this case it should work just fine.
@@ -192,7 +204,7 @@ fi
 if [ $REQUEST_DIST_UPGRADE -eq 1 ]; then
   echo "One or more packages have been kept back. Try running 'apt full-upgrade' as root or via sudo to correct this."
 fi
-if [ $REQUEST_REBOOT -eq 1 ]; then
+if [ $REQUEST_REBOOT -eq 1 ] && [ $NO_REBOOT -eq 0 ]; then
   echo "One of your source packages that was updated requested for a reboot. It is recommended that you do so before running update-debtoo again."
   read -ep 'Would you like to reboot now? (Y/n) ' ANS
   case $ANS in
