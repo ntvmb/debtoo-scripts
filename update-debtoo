@@ -1,23 +1,17 @@
 #!/bin/bash
-# update-debtoo v1.0.5 by Nathaniel Greenwell (NTVMB)
-# This script is designed exclusively for Debtoo GNU/Linux, or if you are using Devuan, you can migrate to Debtoo.
-VERSION=1.0.5
-REAL_VERSION=1.1.7
+# update-debtoo v1.1.0-pre1 by Nathaniel Greenwell (NTVMB)
+# This script is designed exclusively for Debtoo GNU/Linux.
+VERSION=1.1.0-pre1
+REAL_VERSION=1.2.0-pre1
 REQUEST_REBOOT=0
 REQUEST_DIST_UPGRADE=0
+. /etc/os-release
 
 # Check for root access
 if [ $EUID -ne 0 ]; then
 	echo "This script can only be run as root."
 	exit 1
 fi
-
-clear
-echo "debtoo-scripts is undergoing major changes that may be incompatible with"
-echo "previous versions. If that is the case, you must manually update"
-echo "debtoo-scripts. For instructions on how to do so, read the UPGRADING.md file"
-echo "from the debtoo-scripts GitHub repo at https://github.com/ntvmb/debtoo-scripts."
-read -ep "Press a key to continue... " -n1 -s
 
 # Check for updates to installed binary packages
 echo "Checking for binary package updates..."
@@ -39,7 +33,26 @@ fi
 
 # Retrieve latest versions of source packages
 echo "Retrieving source package list..."
-curl -o ./srcpackagelist-debtoo https://raw.githubusercontent.com/ntvmb/debtoo-scripts/master/srcpackagelist-debtoo
+case $VERSION_ID in
+  1)
+    BRANCH=stable
+    curl -o ./srcpackagelist-debtoo https://raw.githubusercontent.com/ntvmb/debtoo-scripts/master/srcpackagelist-stable
+    ;;
+  2)
+    BRANCH=testing
+    curl -o ./srcpackagelist-debtoo https://raw.githubusercontent.com/ntvmb/debtoo-scripts/master/srcpackagelist-testing
+    ;;
+  "unstable")
+    BRANCH=unstable
+    curl -o ./srcpackagelist-debtoo https://raw.githubusercontent.com/ntvmb/debtoo-scripts/master/srcpackagelist-unstable
+    ;;
+  *)
+    # Assume unstable
+    echo "Warning: Could not detect release branch. Assuming unstable. Please check your /etc/os-release file."
+    BRANCH=unstable
+    curl -o ./srcpackagelist-debtoo https://raw.githubusercontent.com/ntvmb/debtoo-scripts/master/srcpackagelist-unstable
+    ;;
+esac
 # Redundant error checking
 if [ $? -ne 0 ]; then
   echo "Error: Failed to get source package list"
@@ -48,7 +61,10 @@ fi
 
 . ./srcpackagelist-debtoo ; # Import source package versions from the list
 # Does the kernel need updated?
-if [ $LINUX_VERSION != $(uname -r) ]; then
+# We need to split the string to also check if the current kernel is newer than the distribution kernel
+IFS='.' read -ra K_VERSION_PART <<< $LINUX_VERSION
+IFS='.' read -ra C_K_VERSION_PART <<< $(uname -r)
+if [ ${K_VERSION_PART[0]} -gt ${C_K_VERSION_PART[0]} ] && [ ${K_VERSION_PART[1]} -gt ${C_K_VERSION_PART[1]} ] && [ $(echo ${K_VERSION_PART[2]} | head -n 1) -gt $(echo ${C_K_VERSION_PART[2]} | head -n 1) ]; then
   echo "Downloading Linux $LINUX_VERSION..."
   curl -o /usr/src/linux-$LINUX_VERSION.tar.xz https://mirrors.edge.kernel.org/pub/linux/kernel/v5.x/linux-$LINUX_VERSION.tar.xz
   if [ $? -ne 0 ]; then
@@ -155,27 +171,21 @@ else
 fi
 # Does debtoo-scripts need to be updated?
 if [ $REAL_VERSION != $DEBTOO_SCRIPTS_VERSION ]; then
-  # Check if it should be kept back
-  readarray -d . -t scripts_version <<< $DEBTOO_SCRIPTS_VERSION
-  if [ $(echo ${scripts_version[1]} | head -n 1) -gt 1 ]; then
-    echo "debtoo-scripts is being kept back."
-  else
-    echo "Downloading debtoo-scripts..."
-    wget --no-cookies -O /tmp/debtoo-scripts-$DEBTOO_SCRIPTS_VERSION.tar.gz https://github.com/ntvmb/debtoo-scripts/archive/refs/tags/v$DEBTOO_SCRIPTS_VERSION.tar.gz
-    if [ $? -ne 0 ]; then
-      echo "Error: Failed to download debtoo-scripts."
-      exit 1
-    fi
-    tar xvf /tmp/debtoo-scripts-$DEBTOO_SCRIPTS_VERSION.tar.gz -C /tmp
-    echo "Installing debtoo-scripts..."
-    cp /tmp/debtoo-scripts-$DEBTOO_SCRIPTS_VERSION/* /bin
-    echo "Cleaning up..."
-    rm -rvf /tmp/debtoo-scripts-*
-    rm -f /bin/README.md
-    rm -f /bin/LICENSE
-    rm -f /bin/srcpackagelist-debtoo
-    chmod 755 /bin/*
+  echo "Downloading debtoo-scripts..."
+  wget --no-cookies -O /tmp/debtoo-scripts-$DEBTOO_SCRIPTS_VERSION.tar.gz https://github.com/ntvmb/debtoo-scripts/archive/refs/tags/v$DEBTOO_SCRIPTS_VERSION.tar.gz
+  if [ $? -ne 0 ]; then
+    echo "Error: Failed to download debtoo-scripts."
+    exit 1
   fi
+  tar xvf /tmp/debtoo-scripts-$DEBTOO_SCRIPTS_VERSION.tar.gz -C /tmp
+  echo "Installing debtoo-scripts..."
+  cp /tmp/debtoo-scripts-$DEBTOO_SCRIPTS_VERSION/* /bin
+  echo "Cleaning up..."
+  rm -rvf /tmp/debtoo-scripts-*
+  rm -f /bin/README.md
+  rm -f /bin/LICENSE
+  rm -f /bin/srcpackagelist-debtoo
+  chmod 755 /bin/*
 else
   echo "debtoo-scripts is up to date"
 fi
