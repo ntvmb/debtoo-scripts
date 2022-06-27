@@ -59,9 +59,8 @@ read -ep "Please enter the hostname for this system. (Default: debtoo) " HOSTNAM
 passwd_root () {
 	echo "Please set the password for root."
 	echo "The root user should not have a blank password. If it is left blank, then a user will be created with the ability to become root using sudo."
-	echo "Warning: Passwords are visible."
-	read -ep "root password: " ROOTPASSWD
-	read -ep "Enter password again for verification: " ROOTPASSWD2
+	read -sep "root password: " ROOTPASSWD
+	read -sep "Enter password again for verification: " ROOTPASSWD2
 	if [ $ROOTPASSWD = $ROOTPASSWD2 ]; then
 		# Passwords match. Continue onward.
 		unset ROOTPASSWD2
@@ -103,8 +102,8 @@ if [ -z $NEWUSERNAME ]; then
 	done
 fi
 user_passwd () {
-	read -ep "Enter password for $NEWUSERNAME: " NEWUSERPASSWD
-	read -ep "And one more time for verification: " NEWUSERPASSWD2
+	read -sep "Enter password for $NEWUSERNAME: " NEWUSERPASSWD
+	read -sep "And one more time for verification: " NEWUSERPASSWD2
 	if [ $NEWUSERPASSWD = $NEWUSERPASSWD2 -a ! -z $NEWUSERPASSWD ]; then
 		unset NEWUSERPASSWD2
 		echo "$NEWUSERNAME:$NEWUSERPASSWD" >> /tmp/passwd
