@@ -1,4 +1,5 @@
 # current versions for Debtoo's preloaded source packages
+# this is being kept for compatibility
 LINUX_VERSION=5.18.7
 LINUX_FIRMWARE_VERSION=20220610
 SUDO_VERSION=1.9.11p3
