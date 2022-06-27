@@ -1,8 +1,8 @@
 #!/bin/bash
-# update-debtoo v1.1.0-pre1 by Nathaniel Greenwell (NTVMB)
+# update-debtoo v1.1.0-testing by Nathaniel Greenwell (NTVMB)
 # This script is designed exclusively for Debtoo GNU/Linux.
-VERSION=1.1.0-pre1
-REAL_VERSION=1.2.0-pre1
+VERSION=1.1.0-testing
+REAL_VERSION=1.2.0-testing
 REQUEST_REBOOT=0
 REQUEST_DIST_UPGRADE=0
 . /etc/os-release
