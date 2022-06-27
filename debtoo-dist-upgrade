@@ -1,0 +1,90 @@
+#!/bin/bash
+VERSION=testing
+KEPT_BACK_PACKAGES_EXIST=0
+
+# Check for root access
+if [ $EUID -ne 0 ]; then
+  echo "This script can only be run as root."
+  exit 1
+fi
+
+# Detect release branch
+. /etc/os-release
+case $VERSION_ID in
+  1)
+    BRANCH=stable
+    ;;
+  2)
+    BRANCH=testing
+    ;;
+  "unstable")
+    BRANCH=unstable
+    ;;
+  *)
+    echo "Error: Unable to detect branch"
+    exit 1
+    ;;
+esac
+if [ $BRANCH == stable ]; then
+  echo "Checking for a new Debtoo release..."
+  CURRENT_VERSION=$VERSION_ID
+  CURRENT_BASE_CODENAME=$BASE_CODENAME
+  wget -q -O /tmp/os-release https://ntvmb.github.io/pub/debtoo/os-release_stable
+  . /tmp/os-release
+  if [ $VERSION_ID -gt $CURRENT_VERSION ]; then
+    echo "Release $VERSION_CODENAME found."
+    echo "Setting new software channels..."
+    perl -pi -e "s/$CURRENT_BASE_CODENAME/$BASE_CODENAME/g" /etc/apt/sources.list
+    apt update
+    clear
+    echo "WARNING:"
+    echo "Performing a distribution upgrade can have unintended side effects on your"
+    echo "system. We cannot guarantee an error-free upgrade experience. If you encounter"
+    echo "an error during the upgrade, your system may be left irreversibly damaged."
+    read -ep "Proceed to upgrade? (Y/n) " ANS
+    case $ANS in
+      Y|y)
+        cp /tmp/os-release /usr/lib/os-release
+        echo "Upgrading binary packages..."
+        apt -y --autoremove full-upgrade
+        if [ $? -ne 0 ]; then
+          echo "Fatal: Could not install upgrades. A clean-up is impossible."
+          exit 2
+        fi
+        echo "Checking for packages being kept back..."
+        if [ -z "$(apt list --upgradable | head -n -1)" ]; then
+          KEPT_BACK_PACKAGES_EXIST=1
+        fi
+        echo "Running update-debtoo..."
+        update-debtoo --no-reboot --source-only
+        if [ $? -ne 0 ]; then
+          echo "Error: Something went wrong while running update-debtoo."
+          exit 1
+        fi
+        echo "Cleaning up..."
+        apt autoclean
+        if [ $KEPT_BACK_PACKAGES_EXIST -eq 1 ]; then
+          echo "One or more binary packages are still being kept back. They must be manually reinstalled."
+          echo "Run 'apt list --upgradable' to see them."
+        echo "Restart the computer to complete the upgrade."
+        exit 0
+        ;;
+      *)
+        echo "Abort."
+        echo "Reverting changes..."
+        perl -pi -e "s/$BASE_CODENAME/$CURRENT_BASE_CODENAME/g"
+        apt update
+        exit
+        ;;
+    esac
+    else
+      echo "There are no new stable versions available."
+      echo "For information on how to upgrade to the testing or unstable distro, visit"
+      echo "https://ntvmb.github.io/pub/debtoo/docs/upgrading-to-another-branch.html"
+    exit
+  fi
+else
+  echo "Testing/unstable distro detected. No need to run a full upgrade."
+  echo "If packages are being kept back, they must be reinstalled."
+  echo "See https://www.debian.org/doc/manuals/apt-howto/ch-apt-get.en.html#s-dist-upgrade for more information."
+fi
