@@ -1,4 +1,4 @@
-# current versions for Debtoo's preloaded source packages (stable)
+# current versions for Debtoo's preloaded source packages (reimu)
 LINUX_VERSION=5.15.50
 LINUX_FIRMWARE_VERSION=20220610
 SUDO_VERSION=1.9.11
