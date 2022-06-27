@@ -1,7 +1,13 @@
 #!/bin/bash
-# apt-source-install v1.0.1 created by Nathaniel Greenwell (NTVMB)
+# apt-source-install v1.0.2 created by Nathaniel Greenwell (NTVMB)
 # designed for Debtoo GNU/Linux or other Debian-based distros
-VERSION=1.0.1
+VERSION=1.0.2
+
+if [ -z $@ ]; then
+	echo "Fatal: No packages specified."
+	echo "Usage: $0 PACKAGES"
+	exit 1
+fi
 
 # Warn if running as root
 if [ $EUID -eq 0 ]
