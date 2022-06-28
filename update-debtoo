@@ -208,7 +208,7 @@ else
   echo "debtoo-scripts is up to date"
 fi
 if [ $REQUEST_DIST_UPGRADE -eq 1 ]; then
-  echo "One or more packages have been kept back. Try running 'apt full-upgrade' as root or via sudo to correct this."
+  echo "One or more packages have been kept back. Try running 'debtoo-dist-upgrade' as root or via sudo to correct this."
 fi
 if [ $REQUEST_REBOOT -eq 1 ] && [ $NO_REBOOT -eq 0 ]; then
   echo "One of your source packages that was updated requested for a reboot. It is recommended that you do so before running update-debtoo again."
