@@ -126,8 +126,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Get list of disks
-(lsblk -A | grep disk) > disks.list
-(lsblk -Ab | grep disk) > disks.listB
+(lsblk | grep disk) > disks.list
 if [ $? -ne 0 ]; then
 	echo "Fatal: Cannot find any disks. Possible causes are - you have no disks, there is a missing driver, or you are running in chroot."
 	exit 126
@@ -166,7 +165,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Get the target disk's partitions (if there are any)
-lsblk -A | grep part > part.list.tmp
+lsblk | grep part > part.list.tmp
 grep "$TARGET_DISK_NAME" part.list.tmp > part.list
 rm part.list.tmp
 # Count the number of partitions and set PART_COUNT to the output value
