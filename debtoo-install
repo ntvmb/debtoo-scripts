@@ -127,6 +127,7 @@ fi
 
 # Get list of disks
 (lsblk | grep disk) > disks.list
+(lsblk -b | grep disk) > disks.listB
 if [ $? -ne 0 ]; then
 	echo "Fatal: Cannot find any disks. Possible causes are - you have no disks, there is a missing driver, or you are running in chroot."
 	exit 126
