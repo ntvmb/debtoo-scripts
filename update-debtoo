@@ -203,6 +203,7 @@ if [ $REAL_VERSION != $DEBTOO_SCRIPTS_VERSION ]; then
   rm -f /bin/README.md
   rm -f /bin/LICENSE
   rm -f /bin/srcpackagelist-*
+  rm -f /bin/UPGRADING.md
   chmod 755 /bin/*
 else
   echo "debtoo-scripts is up to date"
