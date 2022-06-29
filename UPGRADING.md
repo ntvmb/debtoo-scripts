@@ -1,5 +1,5 @@
 # Upgrading debtoo-scripts from v1.1.7 to v1.2.0
-This is a guide on how to upgrade debtoo-scripts from v1.1.7 v1.2.0. If you're an existing Debtoo user, you'll need to know that Debtoo has undergone several changes which include multiple branches. Therefore, debtoo-scripts v1.1.7 will not allow you to upgrade to v1.2.0 automatically.
+This is a guide on how to upgrade debtoo-scripts from v1.1.7 to v1.2.0. If you're an existing Debtoo user, you'll need to know that Debtoo has undergone several changes which include the addition of multiple branches. Therefore, debtoo-scripts v1.1.7 will not allow you to upgrade to v1.2.0 automatically.
 ### os-release file
 First and foremost, you need to get a new os-release file for optimal support. These are hosted on my website, but are not linked to within the website.
 Since previous versions of Debtoo were based exclusively on Devuan Ceres, you'll want the unstable os-release file. It can be downloaded [here.](https://ntvmb.github.io/pub/debtoo/os-release_unstable)
