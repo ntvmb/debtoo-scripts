@@ -78,10 +78,10 @@ if [ $BRANCH == stable ]; then
         exit
         ;;
     esac
-    else
-      echo "There are no new stable versions available."
-      echo "For information on how to upgrade to the testing or unstable distro, visit"
-      echo "https://ntvmb.github.io/pub/debtoo/docs/upgrading-to-another-branch.html"
+  else
+    echo "There are no new stable versions available."
+    echo "For information on how to upgrade to the testing or unstable distro, visit"
+    echo "https://ntvmb.github.io/pub/debtoo/docs/upgrading-to-another-branch.html"
     exit
   fi
 else
