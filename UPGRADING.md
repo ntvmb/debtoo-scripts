@@ -11,7 +11,7 @@ wget -O /usr/lib/os-release https://ntvmb.github.io/pub/debtoo/os-release_unstab
 Now that you have 'installed' your new os-release file, it's time to upgrade.
 Download the latest release:
 ```tex
-wget  -O debtoo-scripts.tar.gz https://github.com/ntvmb/debtoo-scripts/archive/refs/tags/v1.2.0.tar.gz
+wget -O debtoo-scripts.tar.gz https://github.com/ntvmb/debtoo-scripts/archive/refs/tags/v1.2.0.tar.gz
 ```
 Untar it:
 ```tex
