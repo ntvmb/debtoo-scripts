@@ -80,9 +80,9 @@ fi
 . ./srcpackagelist-debtoo ; # Import source package versions from the list
 # Does the kernel need updated?
 # We need to split the string to also check if the current kernel is newer than the distribution kernel
-IFS='.' read -ra K_VERSION_PART <<< $LINUX_VERSION
-IFS='.' read -ra C_K_VERSION_PART <<< $(uname -r)
-if [ ${K_VERSION_PART[0]} -gt ${C_K_VERSION_PART[0]} ] && [ ${K_VERSION_PART[1]} -gt ${C_K_VERSION_PART[1]} ] && [ $(echo ${K_VERSION_PART[2]} | head -n 1) -gt $(echo ${C_K_VERSION_PART[2]} | head -n 1) ]; then
+readarray -d . -t K_VERSION_PART <<< $LINUX_VERSION
+readarray -d . -t C_K_VERSION_PART <<< $(uname -r)
+if [ ${K_VERSION_PART[0]} -gt ${C_K_VERSION_PART[0]} ] || [ ${K_VERSION_PART[1]} -gt ${C_K_VERSION_PART[1]} ] || [ $(echo ${K_VERSION_PART[2]} | head -n 1) -gt $(echo ${C_K_VERSION_PART[2]} | head -n 1) ]; then
   echo "Downloading Linux $LINUX_VERSION..."
   curl -o /usr/src/linux-$LINUX_VERSION.tar.xz https://mirrors.edge.kernel.org/pub/linux/kernel/v5.x/linux-$LINUX_VERSION.tar.xz
   if [ $? -ne 0 ]; then
