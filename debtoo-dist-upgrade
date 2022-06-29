@@ -73,7 +73,7 @@ if [ $BRANCH == stable ]; then
       *)
         echo "Abort."
         echo "Reverting changes..."
-        perl -pi -e "s/$BASE_CODENAME/$CURRENT_BASE_CODENAME/g"
+        perl -pi -e "s/$BASE_CODENAME/$CURRENT_BASE_CODENAME/g" /etc/apt/sources.list
         apt update
         exit
         ;;
