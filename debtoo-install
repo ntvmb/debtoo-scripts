@@ -245,7 +245,7 @@ erase_disk () {
 				echo "Creating FAT32 filesystem on $ESP..."
 				mkdosfs -F 32 $ESP
 				echo "Creating filesystem for swap on $SWAP_PARTITION..."
-				mkswap -q $SWAP_PARTITION
+				mkswap $SWAP_PARTITION
 			else
 				local EOP1=$(expr $DISK_SIZE - $(expr $RAM_B / 2 + 1048576))
 				local SOP2=$(expr $EOP1 + 1048576)
@@ -260,7 +260,7 @@ erase_disk () {
 				echo "Creating ext4 filesystem on $ROOT_PARTITION..."
 				mkfs.ext4 -q $ROOT_PARTITION
 				echo "Creating filesystem for swap on $SWAP_PARTITION..."
-				mkswap -q $SWAP_PARTITION
+				mkswap $SWAP_PARTITION
 			fi
 			;;
 		*)
@@ -466,7 +466,6 @@ rm disks.listB
 rm part.list
 rm /tmp/chroot-script
 echo Done. Please reboot and remove the installation medium.
-echo Once you reboot, you can run tasksel after reconnecting to the internet \(if necessary\) to install a DE of your choice.
 read -ep "Would you like to reboot now? (Y/n) " ANS
 case $ANS in
 	Y|y)
