@@ -346,7 +346,7 @@ case $VERSION_ID in
 		exit 1
 		;;
 esac
-debootstrap --variant=minbase --no-merged-usr --include=grub2,dhcpcd5,iwd,man-db,texinfo,efibootmgr,zstd,tasksel,manpages,wget,curl,nano,vim,locales,build-essential $CODENAME $TARGET_DIR
+debootstrap --variant=minbase --no-merged-usr --include=grub2,dhcpcd5,iwd,man-db,texinfo,efibootmgr,zstd,tasksel,dialog,manpages,wget,curl,nano,vim,locales,build-essential $CODENAME $TARGET_DIR
 if [ $? -ne 0 ]; then
 	echo "Fatal: Failed to install the base system."
 	exit 1
@@ -398,7 +398,7 @@ echo echo \"Getting build dependencies...\" >> $CHROOT_SCRIPT
 echo apt update >> $CHROOT_SCRIPT
 echo apt -y build-dep linux-signed-amd64 >> $CHROOT_SCRIPT
 # Very long line
-echo apt -y install git fakeroot ncurses-dev xz-utils libssl-dev bc flex libelf-dev bison binutils pahole jfsutils reiserfsprogs xfsprogs squashfs-tools btrfs-progs dosfstools quota ppp nfs-common procps udev rasdaemon iptables openssl >> $CHROOT_SCRIPT
+echo apt -y install git fakeroot ncurses-dev xz-utils libssl-dev bc flex libelf-dev bison binutils dwarves jfsutils reiserfsprogs xfsprogs squashfs-tools btrfs-progs dosfstools quota ppp nfs-common procps udev rasdaemon iptables openssl >> $CHROOT_SCRIPT
 echo cd /usr/src/sysvinit-* >> $CHROOT_SCRIPT
 echo echo \"Building sysvinit...\" >> $CHROOT_SCRIPT
 echo make >> $CHROOT_SCRIPT
