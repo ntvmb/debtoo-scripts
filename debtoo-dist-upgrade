@@ -52,7 +52,7 @@ if [ $BRANCH == stable ]; then
           exit 2
         fi
         echo "Checking for packages being kept back..."
-        if [ -z "$(apt list --upgradable | head -n -1)" ]; then
+        if [ -n "$(apt list --upgradable | head -n -1)" ]; then
           KEPT_BACK_PACKAGES_EXIST=1
         fi
         echo "Running update-debtoo..."
