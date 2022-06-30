@@ -35,7 +35,7 @@ for ARG in $@; do
       ;;
     *)
       echo "Error: Unknown argument $ARG"
-			echo "Usage: $0 [OPTIONS]"
+      echo "Usage: $0 [OPTIONS]"
       exit 1
       ;;
   esac
