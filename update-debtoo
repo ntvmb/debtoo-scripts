@@ -7,13 +7,8 @@ REQUEST_REBOOT=0
 REQUEST_DIST_UPGRADE=0
 NO_REBOOT=0
 SOURCE_ONLY=0
+BINARY_ONLY=0
 . /etc/os-release
-
-# Check for root access
-if [ $EUID -ne 0 ]; then
-	echo "This script can only be run as root."
-	exit 1
-fi
 
 # Parse arguments
 for ARG in $@; do
@@ -21,14 +16,42 @@ for ARG in $@; do
     "--no-reboot")
       NO_REBOOT=1
       ;;
-    "--source-only")
+    "--source-only"|"-s")
       SOURCE_ONLY=1
       ;;
+		"--binary-only"|"-b")
+			BINARY_ONLY=1
+			;;
+		"--help"|"-h")
+			echo "Usage: $0 [OPTIONS]"
+			echo "Options:"
+			echo "	-s | --source-only - Only update source packages"
+			echo "	-b | --binary-only - Only update binary packages"
+			echo "	--no-reboot - Do not prompt for reboot"
+			echo "	--help | -h - This help screen"
+			echo ""
+			echo "File bug reports at https://github.com/ntvmb/debtoo-scripts/issues"
+			exit 0
+			;;
     *)
       echo "Error: Unknown argument $ARG"
+			echo "Usage: $0 [OPTIONS]"
+      exit 1
       ;;
   esac
 done
+
+# Check for root access
+if [ $EUID -ne 0 ]; then
+	echo "This script can only be run as root."
+	exit 1
+fi
+
+if [ $SOURCE_ONLY -eq 1 ] && [ $BINARY_ONLY -eq 1 ]; then
+	echo "Error: Source only and binary only arguments cannot be used together."
+	exit 2
+fi
+
 # Check for updates to installed binary packages
 if [ $SOURCE_ONLY -eq 0 ]; then
   echo "Checking for binary package updates..."
@@ -50,39 +73,43 @@ if [ $SOURCE_ONLY -eq 0 ]; then
 fi
 
 # Retrieve latest versions of source packages
-echo "Retrieving source package list..."
-case $VERSION_ID in
-  1)
-    BRANCH=stable
-    curl -o ./srcpackagelist-debtoo https://raw.githubusercontent.com/ntvmb/debtoo-scripts/master/srcpackagelist-$VERSION_CODENAME
-    ;;
-  2)
-    BRANCH=testing
-    curl -o ./srcpackagelist-debtoo https://raw.githubusercontent.com/ntvmb/debtoo-scripts/master/srcpackagelist-testing
-    ;;
-  "unstable")
-    BRANCH=unstable
-    curl -o ./srcpackagelist-debtoo https://raw.githubusercontent.com/ntvmb/debtoo-scripts/master/srcpackagelist-unstable
-    ;;
-  *)
-    # Assume unstable
-    echo "Warning: Could not detect release branch. Assuming unstable. Please check your /etc/os-release file."
-    BRANCH=unstable
-    curl -o ./srcpackagelist-debtoo https://raw.githubusercontent.com/ntvmb/debtoo-scripts/master/srcpackagelist-unstable
-    ;;
-esac
-# Redundant error checking
-if [ $? -ne 0 ]; then
-  echo "Error: Failed to get source package list"
-  exit 1
+if [ $BINARY_ONLY -eq 0 ]; then
+	echo "Retrieving source package list..."
+	case $VERSION_ID in
+  	1)
+    	BRANCH=stable
+    	curl -o ./srcpackagelist-debtoo https://raw.githubusercontent.com/ntvmb/debtoo-scripts/master/srcpackagelist-$VERSION_CODENAME
+    	;;
+  	2)
+    	BRANCH=testing
+    	curl -o ./srcpackagelist-debtoo https://raw.githubusercontent.com/ntvmb/debtoo-scripts/master/srcpackagelist-testing
+    	;;
+  	"unstable")
+    	BRANCH=unstable
+    	curl -o ./srcpackagelist-debtoo https://raw.githubusercontent.com/ntvmb/debtoo-scripts/master/srcpackagelist-unstable
+    	;;
+  	*)
+    	# Assume unstable
+    	echo "Warning: Could not detect release branch. Assuming unstable. Please check your /etc/os-release file."
+    	BRANCH=unstable
+    	curl -o ./srcpackagelist-debtoo https://raw.githubusercontent.com/ntvmb/debtoo-scripts/master/srcpackagelist-unstable
+    	;;
+	esac
+	# Redundant error checking
+	if [ $? -ne 0 ]; then
+  	echo "Error: Failed to get source package list"
+  	exit 1
+	fi
 fi
 
-. ./srcpackagelist-debtoo ; # Import source package versions from the list
+if [ $BINARY_ONLY -eq 0 ]; then
+	. ./srcpackagelist-debtoo ; # Import source package versions from the list
+fi
 # Does the kernel need updated?
 # We need to split the string to also check if the current kernel is newer than the distribution kernel
 readarray -d . -t K_VERSION_PART <<< $LINUX_VERSION
 readarray -d . -t C_K_VERSION_PART <<< $(uname -r)
-if [ ${K_VERSION_PART[0]} -gt ${C_K_VERSION_PART[0]} ] || [ ${K_VERSION_PART[1]} -gt ${C_K_VERSION_PART[1]} ] || [ $(echo ${K_VERSION_PART[2]} | head -n 1) -gt $(echo ${C_K_VERSION_PART[2]} | head -n 1) ]; then
+if [ $BINARY_ONLY -eq 0 ] && [ ${K_VERSION_PART[0]} -gt ${C_K_VERSION_PART[0]} ] || [ ${K_VERSION_PART[1]} -gt ${C_K_VERSION_PART[1]} ] || [ $(echo ${K_VERSION_PART[2]} | head -n 1) -gt $(echo ${C_K_VERSION_PART[2]} | head -n 1) ]; then
   echo "Downloading Linux $LINUX_VERSION..."
   curl -o /usr/src/linux-$LINUX_VERSION.tar.xz https://mirrors.edge.kernel.org/pub/linux/kernel/v5.x/linux-$LINUX_VERSION.tar.xz
   if [ $? -ne 0 ]; then
@@ -112,10 +139,12 @@ if [ ${K_VERSION_PART[0]} -gt ${C_K_VERSION_PART[0]} ] || [ ${K_VERSION_PART[1]}
   rm -f /usr/src/linux-$LINUX_VERSION.tar.xz
   REQUEST_REBOOT=1
 else
-  echo "Linux is up to date."
+  if [ $BINARY_ONLY -eq 0 ]; then
+		echo "Linux is up to date."
+	fi
 fi
 # Does linux-firmware need to be updated?
-if ! [[ $(ls /usr/src/linux-firmware-*) =~ $LINUX_FIRMWARE_VERSION ]]; then
+if [ $BINARY_ONLY -eq 0 ] && ! [[ $(ls /usr/src/linux-firmware-*) =~ $LINUX_FIRMWARE_VERSION ]]; then
   LINUX_FIRMWARE_OLD=$(ls /usr/src/linux-firmware-*)
   echo "Downloading linux-firmware..."
   curl -o /usr/src/linux-firmware-$LINUX_FIRMWARE_VERSION.tar.xz https://mirrors.edge.kernel.org/pub/linux/kernel/firmware/linux-firmware-$LINUX_FIRMWARE_VERSION.tar.xz
@@ -132,11 +161,13 @@ if ! [[ $(ls /usr/src/linux-firmware-*) =~ $LINUX_FIRMWARE_VERSION ]]; then
   rm -rvf $LINUX_FIRMWARE_OLD
   rm -f /usr/src/linux-firmware-$LINUX_FIRMWARE_VERSION.tar.xz
 else
-  echo "linux-firmware is up to date."
+  if [ $BINARY_ONLY -eq 0 ]; then
+		echo "linux-firmware is up to date."
+	fi
 fi
 # Does sudo need to be updated?
 sudo --version | grep -q $SUDO_VERSION
-if [ $? -ne 0 ]; then
+if [ $? -ne 0 ] && [ $BINARY_ONLY -eq 0 ]; then
   SUDO_OLD=$(sudo --version | awk '{print $3}' | head -n 1)
   echo "Downloading sudo..."
   curl -o /usr/src/sudo-$SUDO_VERSION.tar.gz https://www.sudo.ws/dist/sudo-$SUDO_VERSION.tar.gz
@@ -161,11 +192,13 @@ if [ $? -ne 0 ]; then
   rm -rvf /usr/src/sudo-$SUDO_OLD
   rm -f /usr/src/sudo-$SUDO_VERSION.tar.gz
 else
-  echo "sudo is up to date."
+  if [ $BINARY_ONLY -eq 0 ]; then
+		echo "sudo is up to date."
+	fi
 fi
 # Does sysvinit need to be updated?
 init --version | grep -q $SYSVINIT_VERSION
-if [ $? -ne 0 ]; then
+if [ $? -ne 0 ] && [ $BINARY_ONLY -eq 0 ]; then
   SYSVINIT_OLD=$(init --version | awk '{print $4}' | head -n 1)
   echo "Downloading sysvinit..."
   curl -o /usr/src/sysvinit-$SYSVINIT_VERSION.tar.xz https://mirrors.sarata.com/non-gnu/sysvinit/sysvinit-$SYSVINIT_VERSION.tar.xz
@@ -185,10 +218,12 @@ if [ $? -ne 0 ]; then
   rm -f /usr/src/sysvinit-$SYSVINIT_VERSION.tar.xz
   REQUEST_REBOOT=1
 else
-  echo "sysvinit is up to date."
+  if [ $BINARY_ONLY -eq 0 ]; then
+		echo "sysvinit is up to date."
+	fi
 fi
 # Does debtoo-scripts need to be updated?
-if [ $REAL_VERSION != $DEBTOO_SCRIPTS_VERSION ]; then
+if [ $BINARY_ONLY -eq 0 ] && [ $REAL_VERSION != $DEBTOO_SCRIPTS_VERSION ]; then
   echo "Downloading debtoo-scripts..."
   wget --no-cookies -O /tmp/debtoo-scripts-$DEBTOO_SCRIPTS_VERSION.tar.gz https://github.com/ntvmb/debtoo-scripts/archive/refs/tags/v$DEBTOO_SCRIPTS_VERSION.tar.gz
   if [ $? -ne 0 ]; then
@@ -206,10 +241,12 @@ if [ $REAL_VERSION != $DEBTOO_SCRIPTS_VERSION ]; then
   rm -f /bin/UPGRADING.md
   chmod 755 /bin/*
 else
-  echo "debtoo-scripts is up to date"
+  if [ $BINARY_ONLY -eq 0 ]; then
+		echo "debtoo-scripts is up to date."
+	fi
 fi
 if [ $REQUEST_DIST_UPGRADE -eq 1 ]; then
-  echo "One or more packages have been kept back. Try running 'debtoo-dist-upgrade' as root or via sudo to correct this."
+  echo "One or more binary packages have been kept back. Try running 'debtoo-dist-upgrade' as root or via sudo to correct this."
 fi
 if [ $REQUEST_REBOOT -eq 1 ] && [ $NO_REBOOT -eq 0 ]; then
   echo "One of your source packages that was updated requested for a reboot. It is recommended that you do so before running update-debtoo again."
