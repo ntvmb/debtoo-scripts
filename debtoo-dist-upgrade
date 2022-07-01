@@ -44,7 +44,6 @@ if [ $BRANCH == stable ]; then
     read -ep "Proceed to upgrade? (Y/n) " ANS
     case $ANS in
       Y|y)
-        cp /tmp/os-release /usr/lib/os-release
         echo "Upgrading binary packages..."
         apt -y --autoremove full-upgrade
         if [ $? -ne 0 ]; then
@@ -55,6 +54,7 @@ if [ $BRANCH == stable ]; then
         if [ -n "$(apt list --upgradable | head -n -1)" ]; then
           KEPT_BACK_PACKAGES_EXIST=1
         fi
+        cp /tmp/os-release /usr/lib/os-release
         echo "Running update-debtoo..."
         update-debtoo --no-reboot --source-only
         if [ $? -ne 0 ]; then
