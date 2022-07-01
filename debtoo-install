@@ -354,6 +354,7 @@ fi
 echo "Copying Debtoo scripts..."
 cp /bin/apt-source-install $TARGET_DIR/bin/apt-source-install
 cp /bin/update-debtoo $TARGET_DIR/bin/update-debtoo
+cp /bin/debtoo-dist-upgrade $TARGET_DIR/bin/debtoo-dist-upgrade
 echo "Preparing to enter chroot environment..."
 echo "Copying apt sources..."
 cp /etc/apt/sources.list $TARGET_DIR/etc/apt/sources.list
@@ -435,7 +436,7 @@ fi
 
 # Perform final tasks
 echo "Setting users and passwords..."
-useradd -mU -R $TARGET_DIR $ADDUSER_ARGS $NEWUSERNAME
+useradd -mU -R $TARGET_DIR -s /bin/bash $ADDUSER_ARGS $NEWUSERNAME
 cat /tmp/passwd | chpasswd -R $TARGET_DIR
 echo "Installing the GRUB bootloader..."
 if [ $EFI -eq 1 ]; then
