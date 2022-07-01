@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION=testing
+VERSION=v1.0.0
 KEPT_BACK_PACKAGES_EXIST=0
 
 # Check for root access
