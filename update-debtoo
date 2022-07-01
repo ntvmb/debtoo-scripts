@@ -104,7 +104,14 @@ fi
 
 if [ $BINARY_ONLY -eq 0 ]; then
 	. ./srcpackagelist-debtoo ; # Import source package versions from the list
+else
+	LINUX_VERSION=$(uname -r)
+	LINUX_FIRMWARE_VERSION=null
+	SUDO_VERSION=null
+	SYSVINIT_VERSION=null
+	DEBTOO_SCRIPTS_VERSION=null
 fi
+
 # Does the kernel need updated?
 # We need to split the string to also check if the current kernel is newer than the distribution kernel
 readarray -d . -t K_VERSION_PART <<< $LINUX_VERSION
