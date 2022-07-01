@@ -144,7 +144,7 @@ else
   fi
 fi
 # Does linux-firmware need to be updated?
-if [ $BINARY_ONLY -eq 0 ] && ! [[ $(ls /usr/src/linux-firmware-*) =~ $LINUX_FIRMWARE_VERSION ]]; then
+if [ $BINARY_ONLY -eq 0 ] && ! [[ $(ls -d /usr/src/linux-firmware-*) =~ $LINUX_FIRMWARE_VERSION ]]; then
   LINUX_FIRMWARE_OLD=$(ls /usr/src/linux-firmware-*)
   echo "Downloading linux-firmware..."
   curl -o /usr/src/linux-firmware-$LINUX_FIRMWARE_VERSION.tar.xz https://mirrors.edge.kernel.org/pub/linux/kernel/firmware/linux-firmware-$LINUX_FIRMWARE_VERSION.tar.xz
