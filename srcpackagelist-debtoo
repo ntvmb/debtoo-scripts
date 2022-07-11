@@ -1,7 +1,9 @@
-# current versions for Debtoo's preloaded source packages
+# current versions for Debtoo's preloaded source packages (legacy unstable)
 # this is being kept for compatibility
-LINUX_VERSION=5.18.8
-LINUX_FIRMWARE_VERSION=20220610
+echo Note: The legacy unstable branch of Debtoo will no longer be supported as of 
+echo July 31, 2022. Please see https://github.com/ntvmb/debtoo-scripts/blob/master/UPGRADING.md for more information.
+LINUX_VERSION=5.18.10
+LINUX_FIRMWARE_VERSION=20220708
 SUDO_VERSION=1.9.11p3
 SYSVINIT_VERSION=3.04
 DEBTOO_SCRIPTS_VERSION=1.1.7
