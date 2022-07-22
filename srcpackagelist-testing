@@ -1,5 +1,5 @@
 # current versions for Debtoo's preloaded source packages (testing)
-LINUX_VERSION=5.18.10
+LINUX_VERSION=5.18.12
 LINUX_FIRMWARE_VERSION=20220708
 SUDO_VERSION=1.9.11p3
 SYSVINIT_VERSION=3.04
