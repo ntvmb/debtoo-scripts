@@ -1,13 +1,15 @@
 #!/bin/bash
 # update-debtoo v1.1.0-testing by Nathaniel Greenwell (NTVMB)
 # This script is designed exclusively for Debtoo GNU/Linux.
-VERSION=1.1.0
+VERSION=1.1.1
 REAL_VERSION=1.2.0
 REQUEST_REBOOT=0
 REQUEST_DIST_UPGRADE=0
 NO_REBOOT=0
 SOURCE_ONLY=0
 BINARY_ONLY=0
+NO_COMPILE=0
+FORCE_DOWNGRADE=0
 . /etc/os-release
 
 # Parse arguments
@@ -28,10 +30,33 @@ for ARG in $@; do
       echo "	-s | --source-only - Only update source packages"
       echo "	-b | --binary-only - Only update binary packages"
       echo "	--no-reboot - Do not prompt for reboot"
+      echo "	--no-compile - Do not compile source packages (Download and extract only; for building Debtoo ISOs)"
+      echo "	--branch=BRANCH - Force downloading from BRANCH (For debugging and building Debtoo ISOs)"
+      echo "	-f | --force-downgrade - Force downgrading source packages (This may damage your system if the --no-compile parameter is not specified!)"
       echo "	--help | -h - This help screen"
       echo ""
       echo "File bug reports at https://github.com/ntvmb/debtoo-scripts/issues"
       exit 0
+      ;;
+    "--no-compile")
+      NO_COMPILE=1
+      ;;
+    "--branch="*)
+      if echo $ARG | grep -q reimu; then
+        VERSION_ID=1
+        VERSION_CODENAME="reimu"
+      elif echo $ARG | grep -q testing; then
+        VERSION_ID=2
+      elif echo $ARG | grep -q unstable; then
+        VERSION_ID="unstable"
+      else
+        echo "Error: Invalid branch."
+        echo "Valid options are: reimu, testing, unstable"
+        exit 1
+      fi
+      ;;
+    "-f"|"--force-downgrade")
+      FORCE_DOWNGRADE=1
       ;;
     *)
       echo "Error: Unknown argument $ARG"
@@ -116,7 +141,7 @@ fi
 # We need to split the string to also check if the current kernel is newer than the distribution kernel
 readarray -d . -t K_VERSION_PART <<< $LINUX_VERSION
 readarray -d . -t C_K_VERSION_PART <<< $(uname -r)
-if [ $BINARY_ONLY -eq 0 ] && [ ${K_VERSION_PART[0]} -gt ${C_K_VERSION_PART[0]} ] || [ ${K_VERSION_PART[1]} -gt ${C_K_VERSION_PART[1]} ] || [ $(echo ${K_VERSION_PART[2]} | head -n 1) -gt $(echo ${C_K_VERSION_PART[2]} | head -n 1) ]; then
+if [ $BINARY_ONLY -eq 0 ] && [ ${K_VERSION_PART[0]} -gt ${C_K_VERSION_PART[0]} ] || [ ${K_VERSION_PART[1]} -gt ${C_K_VERSION_PART[1]} ] || [ $(echo ${K_VERSION_PART[2]} | head -n 1) -gt $(echo ${C_K_VERSION_PART[2]} | head -n 1) ] || [ $FORCE_DOWNGRADE -eq 1 ]; then
   echo "Downloading Linux $LINUX_VERSION..."
   curl -o /usr/src/linux-$LINUX_VERSION.tar.xz https://mirrors.edge.kernel.org/pub/linux/kernel/v5.x/linux-$LINUX_VERSION.tar.xz
   if [ $? -ne 0 ]; then
@@ -127,31 +152,35 @@ if [ $BINARY_ONLY -eq 0 ] && [ ${K_VERSION_PART[0]} -gt ${C_K_VERSION_PART[0]} ]
   tar xvf /usr/src/linux-$LINUX_VERSION.tar.xz -C /usr/src/
   echo "Copying current config..."
   cp /usr/src/linux-$(uname -r)/.config /usr/src/linux-$LINUX_VERSION/.config
-  echo "Preparing to build Linux..."
-  cd /usr/src/linux-$LINUX_VERSION
-  make oldconfig
-  echo "Building Linux..."
-  make
-  if [ $? -ne 0 ]; then
-    echo "Error: Failed to build Linux."
-    exit 1
+  if [ $NO_COMPILE -eq 0 ]; then
+    echo "Preparing to build Linux..."
+    cd /usr/src/linux-$LINUX_VERSION
+    make oldconfig
+    echo "Building Linux..."
+    make
+    if [ $? -ne 0 ]; then
+      echo "Error: Failed to build Linux."
+      exit 1
+    fi
+    echo "Removing old kernel source code..."
+    rm -rvf /usr/src/linux-$(uname -r)
+    echo "Installing Linux modules..."
+    make modules_install
+    echo "Installing Linux..."
+    make install
+    echo "Cleaning up..."
+    rm -f /usr/src/linux-$LINUX_VERSION.tar.xz
+    REQUEST_REBOOT=1
+  else
+    echo "--no-compile option specified. Not installing Linux."
   fi
-  echo "Removing old kernel source code..."
-  rm -rvf /usr/src/linux-$(uname -r)
-  echo "Installing Linux modules..."
-  make modules_install
-  echo "Installing Linux..."
-  make install
-  echo "Cleaning up..."
-  rm -f /usr/src/linux-$LINUX_VERSION.tar.xz
-  REQUEST_REBOOT=1
 else
   if [ $BINARY_ONLY -eq 0 ]; then
     echo "Linux is up to date."
   fi
 fi
 # Does linux-firmware need to be updated?
-if [ $BINARY_ONLY -eq 0 ] && ! [[ $(ls -d /usr/src/linux-firmware-*) =~ $LINUX_FIRMWARE_VERSION ]]; then
+if [ $BINARY_ONLY -eq 0 ] && ! [[ $(ls -d /usr/src/linux-firmware-*) =~ $LINUX_FIRMWARE_VERSION ]] || [ $FORCE_DOWNGRADE -eq 1 ]; then
   LINUX_FIRMWARE_OLD=$(ls /usr/src/linux-firmware-*)
   echo "Downloading linux-firmware..."
   curl -o /usr/src/linux-firmware-$LINUX_FIRMWARE_VERSION.tar.xz https://mirrors.edge.kernel.org/pub/linux/kernel/firmware/linux-firmware-$LINUX_FIRMWARE_VERSION.tar.xz
@@ -161,20 +190,23 @@ if [ $BINARY_ONLY -eq 0 ] && ! [[ $(ls -d /usr/src/linux-firmware-*) =~ $LINUX_F
   fi
   echo "Untarring linux-firmware..."
   tar xvf /usr/src/linux-firmware-$LINUX_FIRMWARE_VERSION.tar.xz -C /usr/src/
-  echo "Installing linux-firmware..."
-  cd /usr/src/linux-firmware-$LINUX_FIRMWARE_VERSION
-  make install
-  echo "Cleaning up..."
-  rm -rvf $LINUX_FIRMWARE_OLD
-  rm -f /usr/src/linux-firmware-$LINUX_FIRMWARE_VERSION.tar.xz
+  if [ $NO_COMPILE -eq 0 ]; then
+    echo "Installing linux-firmware..."
+    cd /usr/src/linux-firmware-$LINUX_FIRMWARE_VERSION
+    make install
+    echo "Cleaning up..."
+    rm -rvf $LINUX_FIRMWARE_OLD
+    rm -f /usr/src/linux-firmware-$LINUX_FIRMWARE_VERSION.tar.xz
+  else
+    echo "--no-compile parameter specified. Not installing linux-firmware."
+  fi
 else
   if [ $BINARY_ONLY -eq 0 ]; then
     echo "linux-firmware is up to date."
   fi
 fi
 # Does sudo need to be updated?
-sudo --version | grep -q $SUDO_VERSION
-if [ $? -ne 0 ] && [ $BINARY_ONLY -eq 0 ]; then
+if [ $BINARY_ONLY -eq 0 ] && ! sudo --version | grep -q $SUDO_VERSION || [ $FORCE_DOWNGRADE -eq 1 ]; then
   SUDO_OLD=$(sudo --version | awk '{print $3}' | head -n 1)
   echo "Downloading sudo..."
   curl -o /usr/src/sudo-$SUDO_VERSION.tar.gz https://www.sudo.ws/dist/sudo-$SUDO_VERSION.tar.gz
@@ -184,28 +216,32 @@ if [ $? -ne 0 ] && [ $BINARY_ONLY -eq 0 ]; then
   fi
   echo "Untarring sudo..."
   tar xvf /usr/src/sudo-$SUDO_VERSION.tar.gz -C /usr/src/
-  echo "Preparing to build sudo..."
-  cd /usr/src/sudo-$SUDO_VERSION
-  ./configure
-  echo "Building sudo..."
-  make
-  if [ $? -ne 0 ]; then
-    echo "Error: Failed to build sudo."
-    exit 1
+  if [ $NO_COMPILE -eq 0 ]; then
+    echo "Preparing to build sudo..."
+    cd /usr/src/sudo-$SUDO_VERSION
+    ./configure
+    echo "Building sudo..."
+    make
+    if [ $? -ne 0 ]; then
+      echo "Error: Failed to build sudo."
+      exit 1
+    fi
+    echo "Installing sudo..."
+    make install
+    echo "Cleaning up..."
+    rm -rvf /usr/src/sudo-$SUDO_OLD
+    rm -f /usr/src/sudo-$SUDO_VERSION.tar.gz
+  else
+    echo "--no-compile parameter specified. Not installing sudo."
   fi
-  echo "Installing sudo..."
-  make install
-  echo "Cleaning up..."
-  rm -rvf /usr/src/sudo-$SUDO_OLD
-  rm -f /usr/src/sudo-$SUDO_VERSION.tar.gz
 else
   if [ $BINARY_ONLY -eq 0 ]; then
     echo "sudo is up to date."
   fi
 fi
 # Does sysvinit need to be updated?
-init --version | grep -q $SYSVINIT_VERSION
-if [ $? -ne 0 ] && [ $BINARY_ONLY -eq 0 ]; then
+
+if [ $BINARY_ONLY -eq 0 ] && ! init --version | grep -q $SYSVINIT_VERSION || [ $FORCE_DOWNGRADE -eq 1 ]; then
   SYSVINIT_OLD=$(init --version | awk '{print $4}' | head -n 1)
   echo "Downloading sysvinit..."
   curl -o /usr/src/sysvinit-$SYSVINIT_VERSION.tar.xz https://mirrors.sarata.com/non-gnu/sysvinit/sysvinit-$SYSVINIT_VERSION.tar.xz
@@ -215,22 +251,26 @@ if [ $? -ne 0 ] && [ $BINARY_ONLY -eq 0 ]; then
   fi
   echo "Untarring sysvinit..."
   tar xvf /usr/src/sysvinit-$SYSVINIT_VERSION.tar.xz -C /usr/src/
-  echo "Building sysvinit..."
-  cd /usr/src/sysvinit-$SYSVINIT_VERSION
-  make
-  echo "Installing sysvinit..."
-  make install
-  echo "Cleaning up..."
-  rm -rvf /usr/src/sysvinit-$SYSVINIT_OLD
-  rm -f /usr/src/sysvinit-$SYSVINIT_VERSION.tar.xz
-  REQUEST_REBOOT=1
+  if [ $NO_COMPILE -eq 0 ]; then
+    echo "Building sysvinit..."
+    cd /usr/src/sysvinit-$SYSVINIT_VERSION
+    make
+    echo "Installing sysvinit..."
+    make install
+    echo "Cleaning up..."
+    rm -rvf /usr/src/sysvinit-$SYSVINIT_OLD
+    rm -f /usr/src/sysvinit-$SYSVINIT_VERSION.tar.xz
+    REQUEST_REBOOT=1
+  else
+    echo "--no-compile option specified. Not installing sysvinit."
+  fi
 else
   if [ $BINARY_ONLY -eq 0 ]; then
     echo "sysvinit is up to date."
   fi
 fi
 # Does debtoo-scripts need to be updated?
-if [ $BINARY_ONLY -eq 0 ] && [ $REAL_VERSION != $DEBTOO_SCRIPTS_VERSION ]; then
+if [ $BINARY_ONLY -eq 0 ] && [ $REAL_VERSION != $DEBTOO_SCRIPTS_VERSION ] || [ $FORCE_DOWNGRADE -eq 1 ]; then
   echo "Downloading debtoo-scripts..."
   wget --no-cookies -O /tmp/debtoo-scripts-$DEBTOO_SCRIPTS_VERSION.tar.gz https://github.com/ntvmb/debtoo-scripts/archive/refs/tags/v$DEBTOO_SCRIPTS_VERSION.tar.gz
   if [ $? -ne 0 ]; then
@@ -238,15 +278,19 @@ if [ $BINARY_ONLY -eq 0 ] && [ $REAL_VERSION != $DEBTOO_SCRIPTS_VERSION ]; then
     exit 1
   fi
   tar xvf /tmp/debtoo-scripts-$DEBTOO_SCRIPTS_VERSION.tar.gz -C /tmp
-  echo "Installing debtoo-scripts..."
-  cp /tmp/debtoo-scripts-$DEBTOO_SCRIPTS_VERSION/* /bin
-  echo "Cleaning up..."
-  rm -rvf /tmp/debtoo-scripts-*
-  rm -f /bin/README.md
-  rm -f /bin/LICENSE
-  rm -f /bin/srcpackagelist-*
-  rm -f /bin/UPGRADING.md
-  chmod 755 /bin/*
+  if [ $NO_COMPILE -eq 0 ]; then
+    echo "Installing debtoo-scripts..."
+    cp /tmp/debtoo-scripts-$DEBTOO_SCRIPTS_VERSION/* /bin
+    echo "Cleaning up..."
+    rm -rvf /tmp/debtoo-scripts-*
+    rm -f /bin/README.md
+    rm -f /bin/LICENSE
+    rm -f /bin/srcpackagelist-*
+    rm -f /bin/UPGRADING.md
+    chmod 755 /bin/*
+  else
+    echo "--no-compile parameter specified. Not installing debtoo-scripts."
+  fi
 else
   if [ $BINARY_ONLY -eq 0 ]; then
     echo "debtoo-scripts is up to date."
