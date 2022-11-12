@@ -1,5 +1,5 @@
 #!/bin/bash
-# update-debtoo v1.1.0-testing by Nathaniel Greenwell (NTVMB)
+# update-debtoo v1.1.2 by Nathaniel Greenwell (NTVMB)
 # This script is designed exclusively for Debtoo GNU/Linux.
 VERSION=1.1.2
 REAL_VERSION=1.2.1
