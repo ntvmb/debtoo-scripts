@@ -1,8 +1,8 @@
 #!/bin/bash
 # update-debtoo v1.1.0-testing by Nathaniel Greenwell (NTVMB)
 # This script is designed exclusively for Debtoo GNU/Linux.
-VERSION=1.1.1
-REAL_VERSION=1.2.0
+VERSION=1.1.2
+REAL_VERSION=1.2.1
 REQUEST_REBOOT=0
 REQUEST_DIST_UPGRADE=0
 NO_REBOOT=0
@@ -11,6 +11,42 @@ BINARY_ONLY=0
 NO_COMPILE=0
 FORCE_DOWNGRADE=0
 . /etc/os-release
+
+# Define functions
+update_kernel() {
+  echo "Downloading Linux $LINUX_VERSION..."
+  curl -o /usr/src/linux-$LINUX_VERSION.tar.xz https://mirrors.edge.kernel.org/pub/linux/kernel/v${K_VERSION_PART[0]}.x/linux-$LINUX_VERSION.tar.xz
+  if [ $? -ne 0 ]; then
+    echo "Error: Failed to download Linux. If this is due to a HTTP 404 error, an updated version of debtoo-scripts may have fixed this."
+    exit 1
+  fi
+  echo "Untarring Linux $LINUX_VERSION..."
+  tar xvf /usr/src/linux-$LINUX_VERSION.tar.xz -C /usr/src/
+  echo "Copying current config..."
+  cp /usr/src/linux-$(uname -r)/.config /usr/src/linux-$LINUX_VERSION/.config
+  if [ $NO_COMPILE -eq 0 ]; then
+    echo "Preparing to build Linux..."
+    cd /usr/src/linux-$LINUX_VERSION
+    make oldconfig
+    echo "Building Linux..."
+    make
+    if [ $? -ne 0 ]; then
+      echo "Error: Failed to build Linux."
+      exit 1
+    fi
+    echo "Removing old kernel source code..."
+    rm -rvf /usr/src/linux-$(uname -r)
+    echo "Installing Linux modules..."
+    make modules_install
+    echo "Installing Linux..."
+    make install
+    echo "Cleaning up..."
+    rm -f /usr/src/linux-$LINUX_VERSION.tar.xz
+    REQUEST_REBOOT=1
+  else
+    echo "--no-compile option specified. Not installing Linux."
+  fi
+}
 
 # Parse arguments
 for ARG in $@; do
@@ -138,45 +174,19 @@ else
 fi
 
 # Does the kernel need updated?
-# We need to split the string to also check if the current kernel is newer than the distribution kernel
+# We need to split the string to also check if the current kernel is newer than the distribution's kernel
 readarray -d . -t K_VERSION_PART <<< $LINUX_VERSION
 readarray -d . -t C_K_VERSION_PART <<< $(uname -r)
 if [ $BINARY_ONLY -eq 0 ] && [ ${K_VERSION_PART[0]} -gt ${C_K_VERSION_PART[0]} ] || [ ${K_VERSION_PART[1]} -gt ${C_K_VERSION_PART[1]} ] || [ $(echo ${K_VERSION_PART[2]} | head -n 1) -gt $(echo ${C_K_VERSION_PART[2]} | head -n 1) ] || [ $FORCE_DOWNGRADE -eq 1 ]; then
-  echo "Downloading Linux $LINUX_VERSION..."
-  curl -o /usr/src/linux-$LINUX_VERSION.tar.xz https://mirrors.edge.kernel.org/pub/linux/kernel/v5.x/linux-$LINUX_VERSION.tar.xz
-  if [ $? -ne 0 ]; then
-    echo "Error: Failed to download Linux. If this is due to a HTTP 404 error, an updated version of debtoo-scripts may have fixed this."
-    exit 1
-  fi
-  echo "Untarring Linux $LINUX_VERSION..."
-  tar xvf /usr/src/linux-$LINUX_VERSION.tar.xz -C /usr/src/
-  echo "Copying current config..."
-  cp /usr/src/linux-$(uname -r)/.config /usr/src/linux-$LINUX_VERSION/.config
-  if [ $NO_COMPILE -eq 0 ]; then
-    echo "Preparing to build Linux..."
-    cd /usr/src/linux-$LINUX_VERSION
-    make oldconfig
-    echo "Building Linux..."
-    make
-    if [ $? -ne 0 ]; then
-      echo "Error: Failed to build Linux."
-      exit 1
-    fi
-    echo "Removing old kernel source code..."
-    rm -rvf /usr/src/linux-$(uname -r)
-    echo "Installing Linux modules..."
-    make modules_install
-    echo "Installing Linux..."
-    make install
-    echo "Cleaning up..."
-    rm -f /usr/src/linux-$LINUX_VERSION.tar.xz
-    REQUEST_REBOOT=1
-  else
-    echo "--no-compile option specified. Not installing Linux."
-  fi
+  update_kernel
 else
   if [ $BINARY_ONLY -eq 0 ]; then
-    echo "Linux is up to date."
+    if [[ $(uname -r) =~ "-" ]]; then
+      echo Debian distribution kernel detected. Forcing kernel update...
+      update_kernel
+    else
+      echo "Linux is up to date."
+    fi
   fi
 fi
 # Does linux-firmware need to be updated?
