@@ -1,9 +1,9 @@
 ---
 name: Feature request
 about: Suggest an idea for this project
-title: ''
-labels: 'bug'
-assignees: ''
+title: "[FEATURE]"
+labels: 'enhancement, priority: normal'
+assignees: ntvmb
 
 ---
 
