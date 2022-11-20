@@ -254,7 +254,7 @@ fi
 if [ $BINARY_ONLY -eq 0 ] && ! init --version | grep -q $SYSVINIT_VERSION || [ $FORCE_DOWNGRADE -eq 1 ]; then
   SYSVINIT_OLD=$(init --version | awk '{print $4}' | head -n 1)
   echo "Downloading sysvinit..."
-  curl -o /usr/src/sysvinit-$SYSVINIT_VERSION.tar.xz https://mirrors.sarata.com/non-gnu/sysvinit/sysvinit-$SYSVINIT_VERSION.tar.xz
+  wget --no-cookies -O /usr/src/sysvinit-$SYSVINIT_VERSION.tar.xz https://github.com/slicer69/sysvinit/releases/download/$SYSVINIT_VERSION/sysvinit-$SYSVINIT_VERSION.tar.xz
   if [ $? -ne 0 ]; then
     echo "Error: Failed to download sysvinit."
     exit 1
