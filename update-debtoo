@@ -2,7 +2,7 @@
 # update-debtoo v1.1.2 by Nathaniel Greenwell (NTVMB)
 # This script is designed exclusively for Debtoo GNU/Linux.
 VERSION=1.1.2
-REAL_VERSION=1.2.1
+REAL_VERSION=1.2.2
 REQUEST_REBOOT=0
 REQUEST_DIST_UPGRADE=0
 NO_REBOOT=0
