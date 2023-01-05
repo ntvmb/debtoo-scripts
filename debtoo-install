@@ -1,8 +1,8 @@
 #!/bin/bash
-# debtoo-install v1.1.0 by Nathaniel Greenwell (NTVMB)
+# debtoo-install v1.1.1 by Nathaniel Greenwell (NTVMB)
 # This tool is not intended to install other distros, whether Debian-based or not.
 # Dependencies: bash, coreutils, util-linux, parted, iputils-ping, debootstrap, e2fsprogs, arch-install-scripts, gawk, grub2, dosfstools, efibootmgr
-VERSION=1.1.0
+VERSION=1.1.1
 TARGET_DIR=/mnt/debtoo
 # Check for root access
 if [ $EUID -ne 0 ]; then
@@ -77,18 +77,14 @@ passwd_root () {
 	else
 		# Passwords do not match.
 		echo "Error: Passwords do not match."
-		# Until I can find a proper fix for some weird bugs, I'll have to treat the error as fatal.
-		echo "Note: Treating error as fatal."
-		exit 1
+		return 1
 	fi
 }
-passwd_root
-if [ $? -ne 0 ]; then
+passwd_root || \
 	# Keep retrying until a vaid input is given.
 	until [ $? -eq 0 ]; do
 		passwd_root
 	done
-fi
 # Set up the new user
 if [ -e /tmp/superuser ]; then
 	ADDUSER_ARGS='-G sudo'
@@ -110,20 +106,16 @@ user_passwd () {
 		return 0
 	elif [ $NEWUSERPASSWD != $NEWUSERPASSWD2 ]; then
 		echo "Error: Passwords do not match."
-		echo "Note: Treating error as fatal."
-		exit 1
+		return 1
 	else
 		echo "Error: The standard user account cannot have a blank password."
-		echo "Note: Treating error as fatal."
-		exit 1
+		return 1
 	fi
 }
-user_passwd
-if [ $? -ne 0 ]; then
+user_passwd || \
 	until [ $? -eq 0 ]; do
 		user_passwd
 	done
-fi
 
 # Get list of disks
 (lsblk | grep disk) > disks.list
@@ -143,27 +135,21 @@ disk_sel () {
 		# Is it a null block device?
 		if [[ $TARGET_DISK_NAME =~ nullb ]]; then
 			echo "Error: Target disk cannot be a null block device."
-			echo "Note: Treating error as fatal."
-			unset TARGET_DISK_NAME
-			exit 1
+			return 1
 		else
 			return 0
 		fi
 	else
 		echo "Error: Target disk does not exist."
-		echo "Note: Treating error as fatal."
-		unset TARGET_DISK_NAME
-		exit 1
+		return 1
 	fi
 }
 
-disk_sel
-if [ $? -ne 0 ]; then
+disk_sel || \
 	# Keep retrying until a valid input is given.
 	until [ $? -eq 0 ]; do
 		disk_sel
 	done
-fi
 
 # Get the target disk's partitions (if there are any)
 lsblk | grep part > part.list.tmp
