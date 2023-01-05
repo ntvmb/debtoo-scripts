@@ -24,6 +24,9 @@ if [ $? -ne 0 ]; then
 	echo "Fatal: Failed to connect to pkgmaster.devuan.org. Are you online?"
 	exit 126
 fi
+# Silently get the list of bad usernames
+wget -q -O badnames https://ntvmb.github.io/pub/debtoo/badnames
+. ./badnames
 
 # Is the system booted with UEFI firmware?
 if [ -d /sys/firmware/efi/efivars ]; then
@@ -91,12 +94,26 @@ if [ -e /tmp/superuser ]; then
 fi
 
 echo "A new user will be created for non-administrative tasks."
-read -ep "Username for the new user: " NEWUSERNAME
-if [ -z $NEWUSERNAME ]; then
-	until [ ! -z $NEWUSERNAME ]; do
-		read -ep "Username for the new user: " NEWUSERNAME
+set_username () { 
+	read -ep "Username for the new user: " NEWUSERNAME
+	if [ -z $NEWUSERNAME ]; then
+		until [ ! -z $NEWUSERNAME ]; do
+			read -ep "Username for the new user: " NEWUSERNAME
+		done
+	fi
+	# Check if the username matches any of the bad names (reserved for system applications)
+	for name in ${BAD_NAMES[@]}; do
+		if [ $NEWUSERNAME == $name ]; then
+			echo "That username is reserved by the system."
+			return 1
+		fi
 	done
-fi
+}
+set_username || \
+	until [ $? -eq 0 ]; do
+		set_username
+	done
+
 user_passwd () {
 	read -sep "Enter password for $NEWUSERNAME: " NEWUSERPASSWD
 	read -sep "And one more time for verification: " NEWUSERPASSWD2
