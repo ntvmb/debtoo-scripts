@@ -349,7 +349,7 @@ case $VERSION_ID in
 		exit 1
 		;;
 esac
-debootstrap --variant=minbase --no-merged-usr --include=grub2,dhcpcd5,iwd,man-db,texinfo,efibootmgr,zstd,tasksel,dialog,manpages,wget,curl,nano,vim,locales,build-essential,apt-utils $CODENAME $TARGET_DIR
+debootstrap --variant=minbase --no-merged-usr --include=grub2,dhcpcd5,iwd,man-db,texinfo,efibootmgr,zstd,tasksel,dialog,manpages,wget,curl,nano,vim,locales,build-essential,apt-utils,wpasupplicant $CODENAME $TARGET_DIR
 if [ $? -ne 0 ]; then
 	echo "Fatal: Failed to install the base system."
 	exit 1
