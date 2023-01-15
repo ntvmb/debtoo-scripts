@@ -1,8 +1,8 @@
 #!/bin/bash
-# debtoo-install v1.1.1 by Nathaniel Greenwell (NTVMB)
+# debtoo-install v1.1.2 by Nathaniel Greenwell (NTVMB)
 # This tool is not intended to install other distros, whether Debian-based or not.
 # Dependencies: bash, coreutils, util-linux, parted, iputils-ping, debootstrap, e2fsprogs, arch-install-scripts, gawk, grub2, dosfstools, efibootmgr
-VERSION=1.1.1
+VERSION=1.1.2
 TARGET_DIR=/mnt/debtoo
 # Check for root access
 if [ $EUID -ne 0 ]; then
@@ -321,6 +321,7 @@ if [ $? -ne 0 ]; then
 fi
 if [ $EFI -eq 1 ]; then
 	echo "Mounting EFI system partition..."
+	mkdir -p $TARGET_DIR/boot
 	mount $ESP $TARGET_DIR/boot
 	if [ $? -ne 0 ]; then
 		echo "Fatal: Failed to mount the EFI system partition."
