@@ -200,7 +200,7 @@ erase_disk () {
 	if [ $EFI -eq 1 ]; then
 		echo "Create new GPT disk label on $TARGET_DISK"
 		echo "Create new ext4 partition on $TARGET_DISK"
-		echo "Create ESP with size of 127 MiB on $TARGET_DISK"
+		echo "Create ESP with size of 512 MiB on $TARGET_DISK"
 		if [ $DISK_TYPE = sd ]; then
 			ESP=$TARGET_DISK\2
 			SWAP_PARTITION=$TARGET_DISK\3
@@ -230,7 +230,7 @@ erase_disk () {
 				exit 130
 			fi
 			if [ $EFI -eq 1 ]; then
-				local EOP1=$(expr $DISK_SIZE - $(expr $RAM_B / 2 + 134217728))
+				local EOP1=$(expr $DISK_SIZE - $(expr $RAM_B / 2 + 536870912))
 				local SOP2=$(expr $EOP1 + 1048576)
 				local EOP2=$(expr $DISK_SIZE - $(expr $RAM_B / 2 + 1048576))
 				local SOP3=$(expr $EOP2 + 1048576)
