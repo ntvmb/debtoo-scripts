@@ -1,8 +1,8 @@
 #!/bin/bash
-# debtoo-install v1.1.2 by Nathaniel Greenwell (NTVMB)
+# debtoo-install v1.1.3 by Nathaniel Greenwell (NTVMB)
 # This tool is not intended to install other distros, whether Debian-based or not.
 # Dependencies: bash, coreutils, util-linux, parted, iputils-ping, debootstrap, e2fsprogs, arch-install-scripts, gawk, grub2, dosfstools, efibootmgr
-VERSION=1.1.2
+VERSION=1.1.3
 TARGET_DIR=/mnt/debtoo
 # Check for root access
 if [ $EUID -ne 0 ]; then
@@ -424,17 +424,18 @@ echo cd ../linux-?.* >> $CHROOT_SCRIPT
 echo make oldconfig >> $CHROOT_SCRIPT
 echo echo \"Building linux...\" >> $CHROOT_SCRIPT
 echo make >> $CHROOT_SCRIPT
-echo if [ \$? -ne 0 ]\; then echo \"Fatal: Failed to build the kernel \(most likely the system ran out of memory\)\"\; exit 137\; fi >> $CHROOT_SCRIPT
+echo if [ \$? -ne 0 ]\; then echo \"Failed to build the kernel.\"\; echo \"Falling back to Devuan kernel...\"\; apt -y install linux-image-amd64 fi >> $CHROOT_SCRIPT
 echo echo \"Installing kernel modules...\" >> $CHROOT_SCRIPT
 echo make modules_install >> $CHROOT_SCRIPT
 echo echo \"Installing linux...\" >> $CHROOT_SCRIPT
 echo make install >> $CHROOT_SCRIPT
+echo if [ \$? -ne 0 ]\; then echo \"Failed to install the kernel.\"\; echo \"Falling back to Devuan kernel...\"\; apt -y install linux-image-amd64 fi >> $CHROOT_SCRIPT
 unset CHROOT_SCRIPT
 echo "Entering chroot environment..."
 chroot $TARGET_DIR /tmp/chroot-script
 if [ $? -ne 0 ]; then
 	echo "Error while executing chroot script."
-	rm /tmp/chroot-script
+	rm $TARGET_DIR/tmp/chroot-script
 	exit 1
 fi
 
@@ -469,7 +470,7 @@ fi
 rm disks.list
 rm disks.listB
 rm part.list
-rm /tmp/chroot-script
+rm $TARGET_DIR/tmp/chroot-script
 echo Done. Please reboot and remove the installation medium.
 read -ep "Would you like to reboot now? (Y/n) " ANS
 case $ANS in
