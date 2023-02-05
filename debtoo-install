@@ -424,12 +424,12 @@ echo cd ../linux-?.* >> $CHROOT_SCRIPT
 echo make oldconfig >> $CHROOT_SCRIPT
 echo echo \"Building linux...\" >> $CHROOT_SCRIPT
 echo make >> $CHROOT_SCRIPT
-echo if [ \$? -ne 0 ]\; then echo \"Failed to build the kernel.\"\; echo \"Falling back to Devuan kernel...\"\; apt -y install linux-image-amd64 fi >> $CHROOT_SCRIPT
+echo if [ \$? -ne 0 ]\; then echo \"Failed to build the kernel.\"\; echo \"Falling back to Devuan kernel...\"\; apt -y install linux-image-amd64\; fi >> $CHROOT_SCRIPT
 echo echo \"Installing kernel modules...\" >> $CHROOT_SCRIPT
 echo make modules_install >> $CHROOT_SCRIPT
 echo echo \"Installing linux...\" >> $CHROOT_SCRIPT
 echo make install >> $CHROOT_SCRIPT
-echo if [ \$? -ne 0 ]\; then echo \"Failed to install the kernel.\"\; echo \"Falling back to Devuan kernel...\"\; apt -y install linux-image-amd64 fi >> $CHROOT_SCRIPT
+echo if [ \$? -ne 0 ]\; then echo \"Failed to install the kernel.\"\; echo \"Falling back to Devuan kernel...\"\; apt -y install linux-image-amd64\; fi >> $CHROOT_SCRIPT
 unset CHROOT_SCRIPT
 echo "Entering chroot environment..."
 chroot $TARGET_DIR /tmp/chroot-script
