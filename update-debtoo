@@ -48,6 +48,15 @@ update_kernel() {
   fi
 }
 
+# Check for root access
+if [ $EUID -ne 0 ]; then
+	echo "This script can only be run as root."
+	exit 1
+fi
+
+wget -q -O dist-list https://github.com/ntvmb/debtoo-scripts/raw/master/dist-list
+. ./dist-list || exit 1
+
 # Parse arguments
 for ARG in $@; do
   case $ARG in
@@ -78,13 +87,14 @@ for ARG in $@; do
       NO_COMPILE=1
       ;;
     "--branch="*)
-      if echo $ARG | grep -q reimu; then
-        VERSION_ID=1
+      DIST="$(echo $ARG | tail -c +10)"
+      if [ "$DIST" = "reimu" ]; then
+        BRANCH=stable
         VERSION_CODENAME="reimu"
-      elif echo $ARG | grep -q testing; then
-        VERSION_ID=2
-      elif echo $ARG | grep -q unstable; then
-        VERSION_ID="unstable"
+      elif [ "$DIST" = "testing" ]; then
+        BRANCH=testing
+      elif [ "$DIST" = "unstable" ]; then
+        BRANCH=unstable
       else
         echo "Error: Invalid branch."
         echo "Valid options are: reimu, testing, unstable"
@@ -101,12 +111,6 @@ for ARG in $@; do
       ;;
   esac
 done
-
-# Check for root access
-if [ $EUID -ne 0 ]; then
-	echo "This script can only be run as root."
-	exit 1
-fi
 
 if [ $SOURCE_ONLY -eq 1 ] && [ $BINARY_ONLY -eq 1 ]; then
 	echo "Error: Source only and binary only arguments cannot be used together."
@@ -136,8 +140,6 @@ fi
 # Retrieve latest versions of source packages
 if [ $BINARY_ONLY -eq 0 ]; then
   echo "Retrieving source package list..."
-  wget -q -O dist-list https://github.com/ntvmb/debtoo-scripts/raw/master/dist-list
-  . ./dist-list || exit 1
   case $BRANCH in
     "stable")
       curl -o ./srcpackagelist-debtoo https://raw.githubusercontent.com/ntvmb/debtoo-scripts/master/srcpackagelist-$VERSION_CODENAME
