@@ -8,16 +8,16 @@ if [ $ID != debtoo ]; then
 		"4")
 			echo "It looks like you are running Devuan $VERSION_CODENAME."
 			echo "To run this script on Devuan, please use the testing or unstable distribution."
-			exit 1
+			return 1
 			;;
 		"5")
 			echo "Devuan testing/unstable detected."
 			echo "If this is supposed to be one of the testing/unstable versions of Debtoo, please refer to https://github.com/ntvmb/debtoo-scripts/blob/master/UPGRADING.md#os-release-file for more information."
-			exit 1
+			return 1
 			;;
 		*)
 			echo "Error: Unknown version $VERSION_CODENAME."
-			exit 1
+			return 1
 			;;
 	esac
 fi
