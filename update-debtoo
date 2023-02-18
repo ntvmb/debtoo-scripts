@@ -1,8 +1,8 @@
 #!/bin/bash
-# update-debtoo v1.1.2 by Nathaniel Greenwell (NTVMB)
+# update-debtoo v1.1.3 by Nathaniel Greenwell (NTVMB)
 # This script is designed exclusively for Debtoo GNU/Linux.
-VERSION=1.1.2
-REAL_VERSION=1.2.2
+VERSION=1.1.3
+REAL_VERSION=1.2.3
 REQUEST_REBOOT=0
 REQUEST_DIST_UPGRADE=0
 NO_REBOOT=0
@@ -136,17 +136,16 @@ fi
 # Retrieve latest versions of source packages
 if [ $BINARY_ONLY -eq 0 ]; then
   echo "Retrieving source package list..."
-  case $VERSION_ID in
-    1)
-      BRANCH=stable
+  wget -q -O dist-list https://github.com/ntvmb/debtoo-scripts/raw/master/dist-list
+  . ./dist-list || exit 1
+  case $BRANCH in
+    "stable")
       curl -o ./srcpackagelist-debtoo https://raw.githubusercontent.com/ntvmb/debtoo-scripts/master/srcpackagelist-$VERSION_CODENAME
       ;;
-    2)
-      BRANCH=testing
+    "testing")
       curl -o ./srcpackagelist-debtoo https://raw.githubusercontent.com/ntvmb/debtoo-scripts/master/srcpackagelist-testing
       ;;
     "unstable")
-      BRANCH=unstable
       curl -o ./srcpackagelist-debtoo https://raw.githubusercontent.com/ntvmb/debtoo-scripts/master/srcpackagelist-unstable
       ;;
     *)
@@ -297,6 +296,7 @@ if [ $BINARY_ONLY -eq 0 ] && [ $REAL_VERSION != $DEBTOO_SCRIPTS_VERSION ] || [ $
     rm -f /bin/LICENSE
     rm -f /bin/srcpackagelist-*
     rm -f /bin/UPGRADING.md
+    rm -f /bin/dist-list
     chmod 755 /bin/*
   else
     echo "--no-compile parameter specified. Not installing debtoo-scripts."
