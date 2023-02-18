@@ -374,23 +374,9 @@ echo "Copying rc.local script..."
 cp /etc/rc.local $TARGET_DIR/etc/rc.local
 echo "Copying os-release file..."
 cp /usr/lib/os-release $TARGET_DIR/usr/lib/os-release
+cp /etc/motd $TARGET_DIR/etc/motd
 echo "Adding /sbin to PATH..."
 echo export PATH=\$PATH:/sbin:/usr/sbin >> $TARGET_DIR/etc/bash.bashrc
-
-# Select and install software
-echo "At the moment, only the core of the system is installed."
-echo "You can choose to install additional software or leave the system in its current state."
-echo "Note: If installing a desktop interface, make sure to also install 'Devuan desktop environment'"
-read -ep "Would you like to run tasksel to install additional software? (Y/n) " ANS
-case $ANS in
-	Y|y)
-		echo "Running tasksel..."
-		arch-chroot $TARGET_DIR tasksel
-		;;
-	*)
-		# Do nothing
-		;;
-esac
 
 echo "Creating chroot script..."
 CHROOT_SCRIPT=$TARGET_DIR/tmp/chroot-script
