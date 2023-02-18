@@ -2,7 +2,7 @@
 if [ $ID != debtoo ]; then
 	if [ $ID != devuan ]; then
 		echo "Error: This doesn't look like a Debtoo installation."
-		exit 1
+		return 1
 	fi
 	case $VERSION_ID in
 		"4")
