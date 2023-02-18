@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION=v1.0.0
+VERSION=v1.0.1
 KEPT_BACK_PACKAGES_EXIST=0
 
 # Check for root access
@@ -9,22 +9,8 @@ if [ $EUID -ne 0 ]; then
 fi
 
 # Detect release branch
-. /etc/os-release
-case $VERSION_ID in
-  1)
-    BRANCH=stable
-    ;;
-  2)
-    BRANCH=testing
-    ;;
-  "unstable")
-    BRANCH=unstable
-    ;;
-  *)
-    echo "Error: Unable to detect branch"
-    exit 1
-    ;;
-esac
+wget -q -O dist-list https://github.com/ntvmb/debtoo-scripts/raw/master/dist-list
+. ./dist-list || exit 1
 if [ $BRANCH == stable ]; then
   echo "Checking for a new Debtoo release..."
   CURRENT_VERSION=$VERSION_ID
