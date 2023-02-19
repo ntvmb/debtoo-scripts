@@ -370,8 +370,6 @@ echo "Copying sudoers file..."
 cp /etc/sudoers $TARGET_DIR/etc/sudoers
 echo "Copying GRUB configuration...."
 cp /etc/default/grub $TARGET_DIR/etc/default/grub
-echo "Copying rc.local script..."
-cp /etc/rc.local $TARGET_DIR/etc/rc.local
 echo "Copying os-release file..."
 cp /usr/lib/os-release $TARGET_DIR/usr/lib/os-release
 cp /etc/motd $TARGET_DIR/etc/motd
@@ -429,6 +427,14 @@ fi
 echo "Setting users and passwords..."
 useradd -mU -R $TARGET_DIR -s /bin/bash $ADDUSER_ARGS $NEWUSERNAME
 cat /tmp/passwd | chpasswd -R $TARGET_DIR
+echo "Copying network configuration..."
+cp /etc/wpa_supplicant/wpa_supplicant.conf $TARGET_DIR/etc/wpa_supplicant/wpa_supplicant.conf
+echo "Configuring rc.local..."
+RC_LOCAL="$TARGET_DIR/etc/rc.local"
+echo dhcpcd -b >> $RC_LOCAL
+# check for wlan interfaces before adding wpa_supplicant to rc.local
+[ -d /sys/class/net/wlan* ] && \
+	. /etc/wlan && echo wpa_supplicant -B -i $WLAN -c /etc/wpa_supplicant/wpa_supplicant.conf >> $RC_LOCAL
 echo "Installing the GRUB bootloader..."
 if [ $EFI -eq 1 ]; then
 	echo "Installing the grub-efi package..."
