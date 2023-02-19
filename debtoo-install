@@ -433,7 +433,7 @@ echo "Installing the GRUB bootloader..."
 if [ $EFI -eq 1 ]; then
 	echo "Installing the grub-efi package..."
 	arch-chroot $TARGET_DIR apt -y install grub-efi
-	arch-chroot $TARGET_DIR grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Debtoo
+	arch-chroot $TARGET_DIR grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Debtoo --removable
 	if [ $? -ne 0 ]; then
 		echo "Fatal: Unable to install GRUB."
 		exit 1
