@@ -378,7 +378,7 @@ cp /etc/default/grub $TARGET_DIR/etc/default/grub
 echo "Copying os-release file..."
 cp /usr/lib/os-release $TARGET_DIR/usr/lib/os-release
 cp /etc/motd $TARGET_DIR/etc/motd
-cp /etc/issue $TARGET_DIR/ets/issue
+cp /etc/issue $TARGET_DIR/etc/issue
 echo "Adding /sbin to PATH..."
 echo export PATH=\$PATH:/sbin:/usr/sbin >> $TARGET_DIR/etc/bash.bashrc
 
