@@ -29,7 +29,7 @@ case $VERSION_ID in
 		BRANCH=testing
 		;;
 	"unstable")
-		BRANCH-unstable
+		BRANCH=unstable
 		;;
 esac
 		
