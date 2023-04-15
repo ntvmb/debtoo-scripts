@@ -188,7 +188,7 @@ DISK_SIZE=$(grep $TARGET_DISK_NAME disks.listB | awk '{print $4}')
 # Define needed functions
 erase_disk () {
 	case $TARGET_DISK_NAME in
-		sd?)
+		sd?|vd?)
 			DISK_TYPE=sd
 			ROOT_PARTITION=$TARGET_DISK\1
 			;;
