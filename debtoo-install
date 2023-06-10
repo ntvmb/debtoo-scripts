@@ -19,8 +19,7 @@ unset TARGET_DISK_NAME
 
 # Test connection to source mirror
 echo "Testing connection to the Devuan mirror..."
-ping pkgmaster.devuan.org -c 4 > /dev/null
-if [ $? -ne 0 ]; then
+if ! wget -q --spider http://pkgmaster.devuan.org; then
 	echo "Fatal: Failed to connect to pkgmaster.devuan.org. Are you online?"
 	exit 126
 fi
